@@ -6,29 +6,13 @@
     <description>Education and news for curious minds.</description>
     <language>en-us</language>
     <atom:link href="https://my-blog-55217.web.app/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Sat, 26 Sep 2026 19:29:24 GMT</lastBuildDate>
-    <item>
-      <title>Why interest rates are moving again — and what it means for you</title>
-      <link>https://my-blog-55217.web.app/news/why-are-rates-changing-explained.html</link>
-      <guid>https://my-blog-55217.web.app/news/why-are-rates-changing-explained.html</guid>
-      <pubDate>Sat, 26 Sep 2026 03:30:00 +0000</pubDate>
-      <description>A plain-language walk-through of what&#39;s driving the latest shift, who feels it first, and how to read the months ahead.</description>
-      <category>News</category>
-    </item>
+    <lastBuildDate>Sat, 26 Sep 2026 19:55:00 GMT</lastBuildDate>
     <item>
       <title>How Vaccines Train Your Immune System (Without Making You Sick)</title>
       <link>https://my-blog-55217.web.app/education/how-vaccines-train-your-immune-system.html</link>
       <guid>https://my-blog-55217.web.app/education/how-vaccines-train-your-immune-system.html</guid>
       <pubDate>Sat, 26 Sep 2026 03:30:00 +0000</pubDate>
-      <description>Vaccines don&#39;t fight disease directly — they teach your immune system to recognize a threat before it ever shows up. Here&#39;s the mechanism, step by step.</description>
-      <category>Education</category>
-    </item>
-    <item>
-      <title>How photosynthesis actually works, step by step</title>
-      <link>https://my-blog-55217.web.app/education/how-photosynthesis-actually-works.html</link>
-      <guid>https://my-blog-55217.web.app/education/how-photosynthesis-actually-works.html</guid>
-      <pubDate>Thu, 24 Sep 2026 03:30:00 +0000</pubDate>
-      <description>From sunlight to sugar: the chemistry your biology class rushed through, explained slowly and clearly.</description>
+      <description>Vaccines don't fight disease directly — they teach your immune system to recognize a threat before it ever shows up. Here's the mechanism, step by step.</description>
       <category>Education</category>
     </item>
   </channel>
