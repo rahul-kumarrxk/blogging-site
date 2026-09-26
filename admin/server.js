@@ -1,12 +1,14 @@
 /**
  * Blog admin panel for The Daybook.
  * - JWT-based HttpOnly cookie auth (Vercel serverless compatible)
- * - Add a post: title, category (education/news), description, author,
- *   optional cover image upload (auto-optimized to WebP via sharp)
- * - On submit the server:
- *     1. optimizes uploaded cover image → WebP ≤1200×630 via sharp
- *     2. commits image + article HTML + homepage/category/sitemap/rss
- *        directly to GitHub via API (no git push, no local disk writes)
+ * - Dual Authoring Modes:
+ *     Mode A: Structured Editor (blocks, categories, tags, SEO)
+ *     Mode B: HTML / Existing View (presentation views, existing article shells)
+ * - View Library with dynamic metrics, template extraction, and previews
+ * - Single Unified Renderer for Article Preview and Live Publishing
+ * - Automatic Category-based Topic Clustering & Confidence Scoring
+ * - Deduplicated Recommendations: Same-Topic, Cross-Category, Latest-Related
+ * - Direct GitHub API commits + local dev synchronization
  */
 
 require('dotenv').config();
@@ -35,12 +37,13 @@ const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 
 const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
-// Local paths used only for reading existing HTML templates
-// (on Vercel the repo is not present, so GitHub API is used instead)
+// Local paths
 const REPO_ROOT = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(REPO_ROOT, 'public');
 const POSTS_JSON = path.join(PUBLIC_DIR, 'posts.json');
 const INDEX_HTML = path.join(PUBLIC_DIR, 'index.html');
+const VIEWS_JSON = path.join(REPO_ROOT, 'views', 'views.json');
+const TEMPLATES_DIR = path.join(REPO_ROOT, 'templates');
 
 const CATEGORIES = {
   education: { label: 'Education', schemaType: 'Article' },
@@ -53,12 +56,12 @@ const upload = multer({
   limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB max per file
 });
 const uploadFields = upload.fields([
-  { name: 'file', maxCount: 1 },   // .html content file
+  { name: 'file', maxCount: 1 },       // .html content file
   { name: 'coverImage', maxCount: 1 }, // cover image
 ]);
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
 // ---- Stateless JWT auth — works across serverless cold starts ----
@@ -81,7 +84,7 @@ function requireAuth(req, res, next) {
 
 function slugify(str) {
   return (
-    str
+    String(str || '')
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
@@ -91,24 +94,533 @@ function slugify(str) {
 }
 
 function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
+  return String(str || '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 }
 
-// Safe slug validation — prevents path traversal
 function isValidSlug(slug) {
   return /^[a-z0-9-]{1,70}$/.test(slug) && !slug.includes('..');
 }
 
-// Read posts.json from local disk (when running locally)
-// On Vercel we fetch it via GitHub API instead
 function readPostsLocal() {
   if (!fs.existsSync(POSTS_JSON)) return [];
-  return JSON.parse(fs.readFileSync(POSTS_JSON, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(POSTS_JSON, 'utf8'));
+  } catch (e) {
+    return [];
+  }
 }
 
-// ---- Article page template ----
+function readViewsLocal() {
+  if (!fs.existsSync(VIEWS_JSON)) {
+    return [
+      {
+        id: 'education-default',
+        name: 'Education Default',
+        type: 'template',
+        source: 'templates/article/education-default.html',
+        description: 'Standard editorial layout for educational guides and deep-dives',
+        category: 'education',
+        active: true,
+      },
+      {
+        id: 'news-default',
+        name: 'News Default',
+        type: 'template',
+        source: 'templates/article/news-default.html',
+        description: 'Clean, authoritative layout for timely reporting and analysis',
+        category: 'news',
+        active: true,
+      },
+      {
+        id: 'featured-article',
+        name: 'Featured Article',
+        type: 'template',
+        source: 'templates/article/featured-article.html',
+        description: 'High-impact layout with featured emphasis and highlighted callouts',
+        category: 'all',
+        active: true,
+      },
+      {
+        id: 'custom-research-layout',
+        name: 'Custom Research Layout',
+        type: 'html',
+        source: 'templates/article/custom-research-layout.html',
+        description: 'Academic and investigative layout with executive summary abstract box',
+        category: 'all',
+        active: true,
+      },
+      {
+        id: 'existing-vaccines-view',
+        name: 'Vaccine Guide Layout (Extracted)',
+        type: 'article-derived',
+        source: 'templates/article/existing-vaccines-view.html',
+        derivedFrom: 'public/education/how-vaccines-train-your-immune-system.html',
+        description: 'Extracted presentation structure from the foundational vaccine explainer',
+        category: 'education',
+        active: true,
+      },
+    ];
+  }
+  try {
+    return JSON.parse(fs.readFileSync(VIEWS_JSON, 'utf8'));
+  } catch (e) {
+    return [];
+  }
+}
+
+function getViewsWithCounts(views, posts) {
+  return views.map((v) => {
+    const count = posts.filter((p) => {
+      if (p.view) {
+        if (typeof p.view === 'string') return p.view === v.id;
+        if (p.view.id) return p.view.id === v.id;
+      }
+      return v.id === `${p.category}-default`;
+    }).length;
+
+    return {
+      ...v,
+      usageCount: count,
+    };
+  });
+}
+
+function loadViewTemplateSync(viewId) {
+  const views = readViewsLocal();
+  const v = views.find((x) => x.id === viewId) || views[0];
+  if (v && v.source) {
+    const fullPath = path.join(REPO_ROOT, v.source);
+    if (fs.existsSync(fullPath)) {
+      return fs.readFileSync(fullPath, 'utf8');
+    }
+  }
+  // Try fallback in templates/article/${viewId}.html
+  const directPath = path.join(TEMPLATES_DIR, 'article', `${viewId}.html`);
+  if (fs.existsSync(directPath)) {
+    return fs.readFileSync(directPath, 'utf8');
+  }
+  return null;
+}
+
+// Representative sample article for safe previewing of views in View Library
+const SAMPLE_ARTICLE = {
+  title: 'How Mitochondria Power Cellular Energy and Metabolism',
+  slug: 'how-mitochondria-power-cellular-energy',
+  category: 'education',
+  description: 'Inside every eukaryotic cell, miniature powerplants convert nutrients into ATP through the electron transport chain. Here is how cellular respiration really works.',
+  author: 'Dr. Evelyn Reed',
+  date: '2026-09-27',
+  readTime: '6 min read',
+  image: '',
+  cluster: 'human-biology-health',
+  clusterName: 'Human Biology & Health',
+  isPillar: false,
+  tags: ['biology', 'cells', 'energy', 'mitochondria', 'metabolism'],
+  contentHtml: `
+    <p>Every movement you make, every thought in your brain, and every heartbeat depends on a continuous supply of adenosine triphosphate (ATP). The primary cellular structures responsible for manufacturing this universal energy currency are mitochondria.</p>
+    
+    <h2>The Architecture of the Mitochondrion</h2>
+    <p>Unlike most organelles, mitochondria possess two distinct membranes: a smooth outer boundary and an extensively folded inner membrane known as cristae. This folding dramatically increases surface area, creating thousands of molecular assembly sites for ATP synthase complexes.</p>
+    
+    <blockquote>Mitochondria are unique among animal cellular organelles in possessing their own independent, circular DNA, passed down almost exclusively through maternal inheritance.</blockquote>
+    
+    <h2>The Electron Transport Chain</h2>
+    <p>During cellular respiration, electrons harvested from broken-down carbohydrates and fats travel along a sequence of protein complexes embedded within the inner membrane. This flow drives protons across into the intermembrane space, creating a steep chemical gradient that turns the molecular turbine of ATP synthase.</p>
+    
+    <h2>Cellular Health and Longevity</h2>
+    <p>When mitochondrial efficiency degrades, cells accumulate reactive oxygen species, triggering inflammatory signals. Understanding how lifestyle, fasting, and exercise stimulate mitochondrial biogenesis remains one of modern biology's most promising longevity frontiers.</p>
+  `,
+};
+
+// ---- Clustering & Similarity Logic ----
+
+function getTokens(str) {
+  if (!str) return [];
+  return String(str)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .filter((w) => w.length > 3);
+}
+
+function calculateSimilarityScore(postA, postB) {
+  let score = 0;
+
+  // Primary category match
+  if (postA.category === postB.category) score += 10;
+
+  // Tags overlap
+  const tagsA = new Set((postA.tags || []).map((t) => String(t).toLowerCase()));
+  const tagsB = new Set((postB.tags || []).map((t) => String(t).toLowerCase()));
+  let tagIntersection = 0;
+  for (const tag of tagsA) {
+    if (tagsB.has(tag)) tagIntersection++;
+  }
+  score += tagIntersection * 15;
+
+  // Title keywords
+  const titleA = new Set(getTokens(postA.title || ''));
+  const titleB = new Set(getTokens(postB.title || ''));
+  let titleIntersection = 0;
+  for (const tok of titleA) {
+    if (titleB.has(tok)) titleIntersection++;
+  }
+  score += titleIntersection * 4;
+
+  // Description keywords
+  const descA = new Set(getTokens(postA.description || ''));
+  const descB = new Set(getTokens(postB.description || ''));
+  let descIntersection = 0;
+  for (const tok of descA) {
+    if (descB.has(tok)) descIntersection++;
+  }
+  score += descIntersection * 3;
+
+  // Cluster keyword overlap
+  if (postA.cluster && postB.cluster && postA.cluster === postB.cluster) {
+    score += 20;
+  }
+
+  return score;
+}
+
+function detectTopicCluster(postData, allPosts = []) {
+  let bestScore = 0;
+  let bestCluster = null;
+  let bestClusterName = null;
+
+  for (const existingPost of allPosts) {
+    if (!existingPost.cluster) continue;
+    if (existingPost.slug === postData.slug && existingPost.category === postData.category) continue;
+
+    const score = calculateSimilarityScore(postData, existingPost);
+    if (score > bestScore) {
+      bestScore = score;
+      bestCluster = existingPost.cluster;
+      bestClusterName = existingPost.clusterName;
+    }
+  }
+
+  // Calculate confidence percentage
+  let confidence = 0;
+  if (bestScore >= 40) confidence = 95;
+  else if (bestScore >= 30) confidence = 88;
+  else if (bestScore >= 20) confidence = 76;
+  else if (bestScore >= 12) confidence = 62;
+  else if (bestScore > 0) confidence = 40;
+
+  const contentLen = (postData.contentHtml || postData.content || '').length;
+  const tagCount = (postData.tags || []).length;
+  const isPillarRecommended = contentLen > 2500 || tagCount >= 4;
+
+  return {
+    cluster: bestScore >= 15 ? bestCluster : null,
+    clusterName: bestScore >= 15 ? bestClusterName : null,
+    confidence,
+    score: bestScore,
+    isPillarRecommended,
+  };
+}
+
+// ---- Deduplicated Recommendation Engine ----
+
+function getRecommendations(post, allPosts = []) {
+  const displayedSlugs = new Set([post.slug]);
+
+  // 1. Same topic / cluster siblings (up to 4)
+  const sameTopic = allPosts
+    .filter((p) => p.slug !== post.slug && post.cluster && p.cluster === post.cluster)
+    .slice(0, 4);
+  sameTopic.forEach((p) => displayedSlugs.add(p.slug));
+
+  // 2. Cross-category articles (different category, ranked by topical similarity, score >= 12)
+  const crossCategory = allPosts
+    .filter((p) => !displayedSlugs.has(p.slug) && p.category !== post.category)
+    .map((p) => ({ post: p, score: calculateSimilarityScore(post, p) }))
+    .filter((x) => x.score >= 12)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((x) => x.post);
+  crossCategory.forEach((p) => displayedSlugs.add(p.slug));
+
+  // 3. Latest related articles (not in same topic or cross-category, ranked by recency + similarity)
+  const latestRelated = allPosts
+    .filter((p) => !displayedSlugs.has(p.slug))
+    .map((p) => ({
+      post: p,
+      score: calculateSimilarityScore(post, p) + (new Date(p.date || '2026-01-01').getTime() / 1e12),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((x) => x.post);
+
+  return { sameTopic, crossCategory, latestRelated };
+}
+
+function renderCrossCategoryWidget(post, crossCategoryPosts) {
+  if (!crossCategoryPosts || !crossCategoryPosts.length) return '';
+  return `
+    <section class="recommendations-section related-cross-category" aria-label="Related Across Categories">
+      <div class="recommendations-header">
+        <h3 class="recommendations-title">Related Across Categories</h3>
+        <span class="recommendations-sub">Cross-Silo Perspectives</span>
+      </div>
+      <div class="recommendations-grid">
+        ${crossCategoryPosts.map((p) => `
+          <a class="recommendation-card" href="/${p.category}/${p.slug}.html">
+            <div>
+              <span class="card-cat-badge" style="color:${p.category === 'news' ? '#c09fff' : '#7faeff'};">${CATEGORIES[p.category] ? CATEGORIES[p.category].label : p.category}</span>
+              <h4>${escapeHtml(p.title)}</h4>
+              <p>${escapeHtml(p.description)}</p>
+            </div>
+            <div class="card-meta">
+              <span>By ${escapeHtml(p.author || 'Staff')}</span>
+              <span>${escapeHtml(p.readTime || '')}</span>
+            </div>
+          </a>
+        `).join('')}
+      </div>
+    </section>`;
+}
+
+function renderLatestRelatedWidget(post, latestRelatedPosts) {
+  if (!latestRelatedPosts || !latestRelatedPosts.length) return '';
+  return `
+    <section class="recommendations-section related-latest" aria-label="Latest Related Articles">
+      <div class="recommendations-header">
+        <h3 class="recommendations-title">Latest Related Content</h3>
+        <span class="recommendations-sub">Fresh Developments &amp; Analysis</span>
+      </div>
+      <div class="recommendations-grid">
+        ${latestRelatedPosts.map((p) => `
+          <a class="recommendation-card" href="/${p.category}/${p.slug}.html">
+            <div>
+              <span class="card-cat-badge" style="color:${p.category === 'news' ? '#c09fff' : '#7faeff'};">${CATEGORIES[p.category] ? CATEGORIES[p.category].label : p.category}</span>
+              <h4>${escapeHtml(p.title)}</h4>
+              <p>${escapeHtml(p.description)}</p>
+            </div>
+            <div class="card-meta">
+              <span>${p.date || ''}</span>
+              <span>${escapeHtml(p.readTime || '')}</span>
+            </div>
+          </a>
+        `).join('')}
+      </div>
+    </section>`;
+}
+
+// ---- Extraction of View Structure from Existing HTML ----
+
+function extractViewFromHtml(htmlContent) {
+  let tpl = htmlContent;
+
+  // Replace title
+  tpl = tpl.replace(/<title>[\s\S]*?<\/title>/i, '<title>{{title}} | {{siteName}}</title>');
+  // Replace meta description
+  tpl = tpl.replace(/<meta\s+name="description"\s+content="[\s\S]*?">/i, '<meta name="description" content="{{description}}">');
+  // Replace canonical and robots
+  tpl = tpl.replace(/<meta\s+name="robots"\s+content="[\s\S]*?">\s*/i, '');
+  tpl = tpl.replace(/<link\s+rel="canonical"\s+href="[\s\S]*?">/i, '<link rel="canonical" href="{{canonicalUrl}}">\n{{robotsMeta}}');
+
+  // Replace OpenGraph
+  tpl = tpl.replace(/<meta\s+property="og:title"\s+content="[\s\S]*?">/i, '<meta property="og:title" content="{{title}}">');
+  tpl = tpl.replace(/<meta\s+property="og:description"\s+content="[\s\S]*?">/i, '<meta property="og:description" content="{{description}}">');
+  tpl = tpl.replace(/<meta\s+property="og:url"\s+content="[\s\S]*?">/i, '<meta property="og:url" content="{{canonicalUrl}}">');
+  tpl = tpl.replace(/<meta\s+property="og:image"\s+content="[\s\S]*?">/i, '<meta property="og:image" content="{{featuredImage}}">');
+  tpl = tpl.replace(/<meta\s+property="article:published_time"\s+content="[\s\S]*?">/i, '<meta property="article:published_time" content="{{isoDate}}">');
+  tpl = tpl.replace(/<meta\s+property="article:modified_time"\s+content="[\s\S]*?">/i, '<meta property="article:modified_time" content="{{isoDate}}">');
+  tpl = tpl.replace(/<meta\s+property="article:section"\s+content="[\s\S]*?">/i, '<meta property="article:section" content="{{categoryLabel}}">');
+
+  // Replace Twitter
+  tpl = tpl.replace(/<meta\s+name="twitter:title"\s+content="[\s\S]*?">/i, '<meta name="twitter:title" content="{{title}}">');
+  tpl = tpl.replace(/<meta\s+name="twitter:description"\s+content="[\s\S]*?">/i, '<meta name="twitter:description" content="{{description}}">');
+  tpl = tpl.replace(/<meta\s+name="twitter:image"\s+content="[\s\S]*?">/i, '<meta name="twitter:image" content="{{featuredImage}}">');
+
+  // Replace JSON-LD schemas
+  tpl = tpl.replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>\s*<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/i, `
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "{{siteUrl}}/" },
+    { "@type": "ListItem", "position": 2, "name": "{{categoryLabel}}", "item": "{{siteUrl}}/{{category}}/" },
+    { "@type": "ListItem", "position": 3, "name": "{{title}}", "item": "{{canonicalUrl}}" }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "{{schemaType}}",
+  "headline": "{{title}}",
+  "description": "{{description}}",
+  "image": ["{{featuredImage}}"],
+  "datePublished": "{{isoDate}}",
+  "dateModified": "{{isoDate}}",
+  "author": { "@type": "Person", "name": "{{author}}" },
+  "publisher": { "@id": "{{siteUrl}}/#organization" },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "{{canonicalUrl}}" },
+  "articleSection": "{{categoryLabel}}"
+}
+</script>`);
+
+  // Insert preview banner after <body>
+  if (!tpl.includes('{{previewBanner}}')) {
+    tpl = tpl.replace(/<body([^>]*)>/i, '<body$1>\n{{previewBanner}}');
+  }
+
+  // Replace breadcrumbs
+  tpl = tpl.replace(/<p\s+class="breadcrumb wrap">[\s\S]*?<\/p>/i, '{{breadcrumbs}}');
+
+  // Replace category tag
+  tpl = tpl.replace(/<p\s+class="category-tag">[\s\S]*?<\/p>/i, '<p class="category-tag">{{categoryLabel}}{{topicPill}}{{pillarBadge}}</p>');
+
+  // Replace H1
+  tpl = tpl.replace(/<div class="article-header">([\s\S]*?)<h1>[\s\S]*?<\/h1>/i, '<div class="article-header">$1<h1>{{title}}</h1>');
+
+  // Replace article-meta
+  tpl = tpl.replace(/<p\s+class="article-meta">[\s\S]*?<\/p>/i, `
+      <p class="article-meta">
+        <span>By {{author}}</span>
+        <span>Published <time datetime="{{date}}">{{date}}</time></span>
+        <span>{{readTime}}</span>
+      </p>`);
+
+  // Replace article-body and insert featuredImageBlock
+  tpl = tpl.replace(/<div class="article-hero-image">[\s\S]*?<\/div>/i, '');
+  tpl = tpl.replace(/<article\s+class="article-body">[\s\S]*?<\/article>/i, `{{featuredImageBlock}}\n    <article class="article-body">\n      {{content}}\n    </article>`);
+
+  // Replace tags
+  tpl = tpl.replace(/<div\s+class="article-tags-wrap">[\s\S]*?<\/div>/i, '{{tagsHtml}}');
+
+  // Replace cluster box
+  tpl = tpl.replace(/<aside\s+class="topic-cluster-box"[\s\S]*?<\/aside>/i, '{{clusterBox}}');
+
+  // Strip hardcoded recommendations widgets if any
+  tpl = tpl.replace(/<section\s+class="recommendations-section[\s\S]*?<\/section>/gi, '');
+  tpl = tpl.replace(/<section\s+class="related-articles-widget[\s\S]*?<\/section>/gi, '');
+
+  if (!tpl.includes('{{crossCategoryArticles}}')) {
+    tpl = tpl.replace('{{clusterBox}}', '{{clusterBox}}\n    {{relatedArticles}}\n    {{crossCategoryArticles}}\n    {{latestRelated}}');
+  }
+
+  return tpl;
+}
+
+// Built-in fallback template string
+function getStandardTemplateFallback() {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}} | {{siteName}}</title>
+<meta name="description" content="{{description}}">
+<link rel="canonical" href="{{canonicalUrl}}">
+{{robotsMeta}}
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="{{siteName}}">
+<meta property="og:title" content="{{title}}">
+<meta property="og:description" content="{{description}}">
+<meta property="og:url" content="{{canonicalUrl}}">
+<meta property="og:image" content="{{featuredImage}}">
+<meta property="article:published_time" content="{{isoDate}}">
+<meta property="article:modified_time" content="{{isoDate}}">
+<meta property="article:section" content="{{categoryLabel}}">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{title}}">
+<meta name="twitter:description" content="{{description}}">
+<meta name="twitter:image" content="{{featuredImage}}">
+
+<link rel="alternate" type="application/rss+xml" title="{{siteName}} feed" href="/rss.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "{{siteUrl}}/" },
+    { "@type": "ListItem", "position": 2, "name": "{{categoryLabel}}", "item": "{{siteUrl}}/{{category}}/" },
+    { "@type": "ListItem", "position": 3, "name": "{{title}}", "item": "{{canonicalUrl}}" }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "{{schemaType}}",
+  "headline": "{{title}}",
+  "description": "{{description}}",
+  "image": ["{{featuredImage}}"],
+  "datePublished": "{{isoDate}}",
+  "dateModified": "{{isoDate}}",
+  "author": { "@type": "Person", "name": "{{author}}" },
+  "publisher": { "@id": "{{siteUrl}}/#organization" },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "{{canonicalUrl}}" },
+  "articleSection": "{{categoryLabel}}"
+}
+</script>
+</head>
+<body>
+{{previewBanner}}
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+  <div class="wrap">
+    <div class="masthead-top"><p class="wordmark"><a href="/">{{siteName}}</a></p></div>
+    <nav class="primary-nav" aria-label="Primary">
+      <ul>
+        <li><a href="/">Front page</a></li>
+        <li><a href="/education/">Education</a></li>
+        <li><a href="/news/">News</a></li>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/contact.html">Contact</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main">
+  {{breadcrumbs}}
+  <div class="wrap">
+    <div class="article-header">
+      <p class="category-tag">{{categoryLabel}}{{topicPill}}{{pillarBadge}}</p>
+      <h1>{{title}}</h1>
+      <p class="article-meta">
+        <span>By {{author}}</span>
+        <span>Published <time datetime="{{date}}">{{date}}</time></span>
+        <span>{{readTime}}</span>
+      </p>
+    </div>
+    {{featuredImageBlock}}
+    <article class="article-body">
+      {{content}}
+    </article>
+    {{tagsHtml}}
+    {{clusterBox}}
+    {{relatedArticles}}
+    {{crossCategoryArticles}}
+    {{latestRelated}}
+  </div>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-bottom">
+      <span>© 2026 {{siteName}}. All rights reserved.</span>
+      <span><a href="/sitemap.xml">Sitemap</a> · <a href="/rss.xml">RSS</a></span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>`;
+}
 
 function wrapArticle(content) {
   if (/<p[\s>]|<h[1-6][\s>]|<ul[\s>]|<blockquote/i.test(content)) return content;
@@ -139,7 +651,7 @@ function renderClusterBox(post, allPosts = []) {
       ${siblings.length ? `
       <p style="font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.5rem;">Related Cluster Articles:</p>
       <ul class="topic-cluster-list">
-        ${siblings.map((s) => `
+        ${siblings.slice(0, 5).map((s) => `
           <li>
             <a href="/${s.category}/${s.slug}.html">${escapeHtml(s.title)}</a>
             <span class="cluster-post-meta">${escapeHtml(s.readTime || '')}</span>
@@ -246,17 +758,23 @@ function renderTopicHubPage(clusterId, posts) {
 </html>`;
 }
 
-function renderArticlePage(post, allPosts = []) {
-  const cat = CATEGORIES[post.category];
+/**
+ * Single Unified Renderer for Article Preview and Live Publishing.
+ * Uses the exact same template and variable substitutions.
+ */
+function renderArticlePage(post, allPosts = [], options = {}) {
+  const cat = CATEGORIES[post.category] || CATEGORIES.education;
   const url = `${SITE_URL}/${post.category}/${post.slug}.html`;
-  const img = post.image ? `${SITE_URL}/${post.image}` : `${SITE_URL}/images/og-default.jpg`;
-  const isoDate = `${post.date}T09:00:00+05:30`;
+  const img = post.image
+    ? (post.image.startsWith('http') ? post.image : `${SITE_URL}/${post.image}`)
+    : `${SITE_URL}/images/og-default.jpg`;
+  const isoDate = `${post.date || new Date().toISOString().slice(0, 10)}T09:00:00+05:30`;
 
   const clusterBreadcrumb = post.cluster
     ? ` / <a href="/topic/${post.cluster}.html">${escapeHtml(post.clusterName || post.cluster)}</a>`
     : '';
   const clusterPill = post.cluster
-    ? `<a class="cluster-pill" href="/topic/${post.cluster}.html">📚 ${escapeHtml(post.clusterName || post.cluster)}</a>`
+    ? ` <a class="cluster-pill" href="/topic/${post.cluster}.html">📚 ${escapeHtml(post.clusterName || post.cluster)}</a>`
     : '';
   const pillarBadge = post.isPillar
     ? ` <span class="pillar-badge">⭐ Comprehensive Guide</span>`
@@ -266,127 +784,95 @@ function renderArticlePage(post, allPosts = []) {
     ? `<div class="article-tags-wrap"><span class="article-tags-label">Tags:</span> ${post.tags.map((t) => `<span class="tag-chip">#${escapeHtml(t)}</span>`).join(' ')}</div>`
     : '';
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(post.title)} | ${SITE_NAME}</title>
-<meta name="description" content="${escapeHtml(post.description)}">
-<link rel="canonical" href="${url}">
-<meta name="robots" content="index, follow, max-image-preview:large">
+  const breadcrumbsHtml = `<p class="breadcrumb wrap"><a href="/">Home</a> / <a href="/${post.category}/">${cat.label}</a>${clusterBreadcrumb} / ${escapeHtml(post.title)}</p>`;
 
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="${SITE_NAME}">
-<meta property="og:title" content="${escapeHtml(post.title)}">
-<meta property="og:description" content="${escapeHtml(post.description)}">
-<meta property="og:url" content="${url}">
-<meta property="og:image" content="${img}">
-<meta property="article:published_time" content="${isoDate}">
-<meta property="article:modified_time" content="${isoDate}">
-<meta property="article:section" content="${cat.label}">
+  const featuredImageBlock = post.image
+    ? `<div class="article-hero-image" style="margin: 1.5rem 0;"><img src="${img}" alt="${escapeHtml(post.title)}" style="max-width:100%;height:auto;border-radius:6px;display:block;"></div>`
+    : '';
 
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="${escapeHtml(post.title)}">
-<meta name="twitter:description" content="${escapeHtml(post.description)}">
-<meta name="twitter:image" content="${img}">
+  const robotsMeta = options.preview
+    ? `<meta name="robots" content="noindex, nofollow">`
+    : `<meta name="robots" content="index, follow, max-image-preview:large">`;
 
-<link rel="alternate" type="application/rss+xml" title="${SITE_NAME} feed" href="/rss.xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/style.css">
+  const previewBanner = options.preview
+    ? `<div style="background:#4f79ff;color:#fff;padding:.6rem 1rem;font-size:.85rem;font-weight:600;text-align:center;position:sticky;top:0;z-index:99999;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;gap:.8rem;">
+        <span>👁 PREVIEW MODE — Unpublished Draft Preview (${escapeHtml(post.title)})</span>
+        <span style="background:rgba(255,255,255,.2);padding:.15rem .5rem;border-radius:4px;font-size:.75rem;">View: ${escapeHtml(options.viewName || (post.view && (post.view.name || post.view.id)) || 'Default')}</span>
+       </div>`
+    : '';
 
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Home", "item": "${SITE_URL}/" },
-    { "@type": "ListItem", "position": 2, "name": "${cat.label}", "item": "${SITE_URL}/${post.category}/" },
-    { "@type": "ListItem", "position": 3, "name": "${escapeHtml(post.title)}", "item": "${url}" }
-  ]
-}
-</script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "${cat.schemaType}",
-  "headline": "${escapeHtml(post.title)}",
-  "description": "${escapeHtml(post.description)}",
-  "image": ["${img}"],
-  "datePublished": "${isoDate}",
-  "dateModified": "${isoDate}",
-  "author": { "@type": "Person", "name": "${escapeHtml(post.author)}" },
-  "publisher": { "@id": "${SITE_URL}/#organization" },
-  "mainEntityOfPage": { "@type": "WebPage", "@id": "${url}" },
-  "articleSection": "${cat.label}"
-}
-</script>
-</head>
-<body>
-<a class="skip-link" href="#main">Skip to content</a>
-<header class="masthead">
-  <div class="wrap">
-    <div class="masthead-top"><p class="wordmark"><a href="/">${SITE_NAME}</a></p></div>
-    <nav class="primary-nav" aria-label="Primary">
-      <ul>
-        <li><a href="/">Front page</a></li>
-        <li><a href="/education/">Education</a></li>
-        <li><a href="/news/">News</a></li>
-        <li><a href="/about.html">About</a></li>
-        <li><a href="/contact.html">Contact</a></li>
-      </ul>
-    </nav>
-  </div>
-</header>
-<main id="main">
-  <p class="breadcrumb wrap"><a href="/">Home</a> / <a href="/${post.category}/">${cat.label}</a>${clusterBreadcrumb} / ${escapeHtml(post.title)}</p>
-  <div class="wrap">
-    <div class="article-header">
-      <p class="category-tag">${cat.label}${clusterPill}${pillarBadge}</p>
-      <h1>${escapeHtml(post.title)}</h1>
-      <p class="article-meta">
-        <span>By ${escapeHtml(post.author)}</span>
-        <span>Published <time datetime="${post.date}">${post.date}</time></span>
-        <span>${escapeHtml(post.readTime || '')}</span>
-      </p>
-    </div>
-    <article class="article-body">
-      ${wrapArticle(post.contentHtml)}
-    </article>
-    ${tagsWrap}
-    ${renderClusterBox(post, allPosts)}
-  </div>
-</main>
-<footer class="site-footer">
-  <div class="wrap">
-    <div class="footer-bottom">
-      <span>© ${new Date().getFullYear()} ${SITE_NAME}. All rights reserved.</span>
-      <span><a href="/sitemap.xml">Sitemap</a> · <a href="/rss.xml">RSS</a></span>
-    </div>
-  </div>
-</footer>
-</body>
-</html>
-`;
+  // Recommendations
+  const { sameTopic, crossCategory, latestRelated } = getRecommendations(post, allPosts);
+  const clusterBoxHtml = renderClusterBox(post, allPosts);
+  const crossCategoryHtml = renderCrossCategoryWidget(post, crossCategory);
+  const latestRelatedHtml = renderLatestRelatedWidget(post, latestRelated);
+
+  // Load view template
+  let templateHtml = options.templateHtml;
+  if (!templateHtml) {
+    const viewId = (post.view && (post.view.id || (typeof post.view === 'string' && post.view))) || `${post.category}-default`;
+    templateHtml = loadViewTemplateSync(viewId);
+  }
+
+  if (!templateHtml) {
+    templateHtml = getStandardTemplateFallback();
+  }
+
+  const variables = {
+    title: escapeHtml(post.title),
+    seoTitle: escapeHtml(post.title),
+    description: escapeHtml(post.description),
+    seoDescription: escapeHtml(post.description),
+    author: escapeHtml(post.author || 'The Daybook Staff'),
+    date: post.date || new Date().toISOString().slice(0, 10),
+    isoDate,
+    readTime: escapeHtml(post.readTime || '5 min read'),
+    category: post.category,
+    categoryLabel: cat.label,
+    schemaType: cat.schemaType,
+    canonicalUrl: url,
+    siteUrl: SITE_URL,
+    siteName: SITE_NAME,
+    featuredImage: img,
+    featuredImageAlt: escapeHtml(post.title),
+    featuredImageBlock,
+    content: wrapArticle(post.contentHtml || ''),
+    breadcrumbs: breadcrumbsHtml,
+    topicPill: clusterPill,
+    pillarBadge,
+    tagsHtml: tagsWrap,
+    clusterBox: clusterBoxHtml,
+    relatedArticles: '',
+    crossCategoryArticles: crossCategoryHtml,
+    latestRelated: latestRelatedHtml,
+    robotsMeta,
+    previewBanner,
+  };
+
+  let rendered = templateHtml;
+  for (const [key, val] of Object.entries(variables)) {
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    rendered = rendered.replace(regex, val !== undefined && val !== null ? val : '');
+  }
+
+  return rendered;
 }
 
-// ---- Regenerate HTML strings (in-memory, no disk writes) ----
+// ---- Regenerate Site Feeds & Indexes ----
 
 function articleRowHtml(post, pathPrefix) {
-  const cat = CATEGORIES[post.category];
+  const cat = CATEGORIES[post.category] || CATEGORIES.education;
   const href = `${pathPrefix}${post.category}/${post.slug}.html`;
   const img = post.image ? `${pathPrefix}${post.image}` : '';
   return `      <article class="article-row">
         <a href="${href}">
-          <img src="${img}" alt="${escapeHtml(post.title)}" width="100" height="100" loading="lazy">
+          <img src="${img}" alt="${escapeHtml(post.title)}" width="100" height="100" loading="lazy" onerror="this.style.display='none'">
         </a>
         <div>
           <p class="category-tag">${cat.label}</p>
           <h3><a href="${href}">${escapeHtml(post.title)}</a></h3>
           <p class="dek">${escapeHtml(post.description)}</p>
-          <p class="meta">By ${escapeHtml(post.author)} · ${post.date} · ${escapeHtml(post.readTime || '')}</p>
+          <p class="meta">By ${escapeHtml(post.author || 'Staff')} · ${post.date} · ${escapeHtml(post.readTime || '')}</p>
         </div>
       </article>`;
 }
@@ -458,7 +944,7 @@ function regenerateRss(posts) {
       <guid>${url}</guid>
       <pubDate>${rfc822(p.date)}</pubDate>
       <description>${escapeHtml(p.description)}</description>
-      <category>${CATEGORIES[p.category].label}</category>
+      <category>${CATEGORIES[p.category] ? CATEGORIES[p.category].label : p.category}</category>
     </item>`;
     })
     .join('\n');
@@ -467,27 +953,23 @@ function regenerateRss(posts) {
 
 // ---- Image optimization ----
 
-/**
- * Accepts a raw image Buffer of any format.
- * Returns a WebP Buffer optimised to max 1200×630, quality 82.
- * Already-small images are not upscaled.
- */
 async function optimizeImage(buffer) {
   return sharp(buffer)
-    .rotate()                      // auto-rotate based on EXIF orientation
+    .rotate()
     .resize({
       width: 1200,
       height: 630,
-      fit: 'inside',               // maintain aspect ratio, never upscale
+      fit: 'inside',
       withoutEnlargement: true,
     })
-    .webp({ quality: 82 })         // convert to WebP
+    .webp({ quality: 82 })
     .toBuffer();
 }
 
-// ---- GitHub API — fetch a file's content and sha ----
+// ---- GitHub API ----
 
 async function getGithubFile(filePath) {
+  if (!GITHUB_TOKEN) return null;
   try {
     const res = await octokit.repos.getContent({
       owner: GITHUB_REPO_OWNER,
@@ -503,27 +985,21 @@ async function getGithubFile(filePath) {
   }
 }
 
-// ---- GitHub API — atomic multi-file commit ----
-
 async function commitFilesToGithub(message, files) {
-  if (!GITHUB_TOKEN) throw new Error('GITHUB_TOKEN is not set in environment.');
+  if (!GITHUB_TOKEN) return;
 
-  // 1. Get current HEAD commit SHA
   const refRes = await octokit.git.getRef({
     owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, ref: `heads/${GITHUB_BRANCH}`,
   });
   const commitSha = refRes.data.object.sha;
 
-  // 2. Get the tree SHA of that commit
   const commitRes = await octokit.git.getCommit({
     owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, commit_sha: commitSha,
   });
   const treeSha = commitRes.data.tree.sha;
 
-  // 3. Build new tree — binary files (images) need a blob created first
   const tree = await Promise.all(files.map(async (f) => {
     if (f.encoding === 'base64') {
-      // Create a binary blob for images
       const blobRes = await octokit.git.createBlob({
         owner: GITHUB_REPO_OWNER,
         repo: GITHUB_REPO_NAME,
@@ -532,7 +1008,6 @@ async function commitFilesToGithub(message, files) {
       });
       return { path: f.path, mode: '100644', type: 'blob', sha: blobRes.data.sha };
     }
-    // Text files — content inline
     return { path: f.path, mode: '100644', type: 'blob', content: f.content };
   }));
 
@@ -540,7 +1015,6 @@ async function commitFilesToGithub(message, files) {
     owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, base_tree: treeSha, tree,
   });
 
-  // 4. Create the commit
   const newCommitRes = await octokit.git.createCommit({
     owner: GITHUB_REPO_OWNER,
     repo: GITHUB_REPO_NAME,
@@ -549,13 +1023,34 @@ async function commitFilesToGithub(message, files) {
     parents: [commitSha],
   });
 
-  // 5. Move the branch pointer to the new commit
   await octokit.git.updateRef({
     owner: GITHUB_REPO_OWNER,
     repo: GITHUB_REPO_NAME,
     ref: `heads/${GITHUB_BRANCH}`,
     sha: newCommitRes.data.sha,
   });
+}
+
+/**
+ * Commits files both to local disk (when running in dev) and to GitHub API
+ */
+async function commitFiles(message, files) {
+  if (fs.existsSync(PUBLIC_DIR)) {
+    for (const f of files) {
+      const fullPath = path.join(REPO_ROOT, f.path);
+      const dir = path.dirname(fullPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      if (f.encoding === 'base64') {
+        fs.writeFileSync(fullPath, Buffer.from(f.content, 'base64'));
+      } else {
+        fs.writeFileSync(fullPath, f.content, 'utf8');
+      }
+    }
+  }
+
+  if (GITHUB_TOKEN) {
+    await commitFilesToGithub(message, files);
+  }
 }
 
 // ---- Routes ----
@@ -567,10 +1062,10 @@ app.post('/login', (req, res) => {
   if (username === ADMIN_USER && password === ADMIN_PASS) {
     const token = jwt.sign({ user: username }, SESSION_SECRET, { expiresIn: '8h' });
     res.cookie('admin_token', token, {
-      httpOnly: true,                                      // never exposed to JS
-      secure: process.env.NODE_ENV === 'production',       // HTTPS only in prod
-      sameSite: 'strict',                                  // CSRF protection
-      maxAge: 8 * 60 * 60 * 1000,                         // 8 hours
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 8 * 60 * 60 * 1000,
     });
     return res.redirect('/admin');
   }
@@ -589,10 +1084,217 @@ app.get('/admin', requireAuth, (req, res) =>
 app.get('/admin/posts', requireAuth, async (req, res) => {
   try {
     const file = await getGithubFile('public/posts.json');
-    const posts = file ? JSON.parse(file.content) : [];
+    const posts = file ? JSON.parse(file.content) : readPostsLocal();
     res.json(posts);
   } catch (err) {
     res.json(readPostsLocal());
+  }
+});
+
+// View Library registry endpoint
+app.get('/admin/views', requireAuth, async (req, res) => {
+  try {
+    const [viewsFile, postsFile] = await Promise.all([
+      getGithubFile('views/views.json'),
+      getGithubFile('public/posts.json'),
+    ]);
+    const views = viewsFile ? JSON.parse(viewsFile.content) : readViewsLocal();
+    const posts = postsFile ? JSON.parse(postsFile.content) : readPostsLocal();
+    res.json(getViewsWithCounts(views, posts));
+  } catch (err) {
+    const views = readViewsLocal();
+    const posts = readPostsLocal();
+    res.json(getViewsWithCounts(views, posts));
+  }
+});
+
+// List existing published HTML articles available to be chosen as a view
+app.get('/admin/existing-articles', requireAuth, async (req, res) => {
+  try {
+    const posts = readPostsLocal();
+    const articles = [];
+
+    ['education', 'news'].forEach((cat) => {
+      const catDir = path.join(PUBLIC_DIR, cat);
+      if (fs.existsSync(catDir)) {
+        fs.readdirSync(catDir).forEach((file) => {
+          if (file.endsWith('.html') && file !== 'index.html') {
+            const slug = file.replace('.html', '');
+            const matched = posts.find((p) => p.slug === slug && p.category === cat);
+            articles.push({
+              category: cat,
+              slug,
+              path: `public/${cat}/${file}`,
+              title: matched ? matched.title : slug.replace(/-/g, ' '),
+            });
+          }
+        });
+      }
+    });
+
+    res.json(articles);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Preview a view in View Library with a realistic sample article
+app.get('/admin/preview/view/:viewId', requireAuth, async (req, res) => {
+  try {
+    const { viewId } = req.params;
+    const views = readViewsLocal();
+    const targetView = views.find((v) => v.id === viewId) || { id: viewId, name: viewId };
+    const posts = readPostsLocal();
+
+    const sample = {
+      ...SAMPLE_ARTICLE,
+      view: { id: targetView.id, name: targetView.name, type: targetView.type },
+    };
+
+    const html = renderArticlePage(sample, posts, { preview: true, viewName: targetView.name });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    res.status(500).send(`<h3>Error previewing view:</h3><pre>${escapeHtml(err.message)}</pre>`);
+  }
+});
+
+// Preview the current draft article being authored in Dashboard
+app.post('/admin/preview/article', requireAuth, uploadFields, async (req, res) => {
+  try {
+    const title = (req.body.title || 'Untitled Draft').trim();
+    const category = req.body.category || 'education';
+    const description = (req.body.description || '').trim();
+    const author = (req.body.author || 'The Daybook Staff').trim();
+    const slug = slugify(req.body.slug || title);
+    const date = req.body.date || new Date().toISOString().slice(0, 10);
+    const readTime = (req.body.readTime || '5 min read').trim();
+    let cluster = req.body.cluster ? slugify(req.body.cluster) : '';
+    let clusterName = (req.body.clusterName || '').trim() || (cluster ? cluster.replace(/-/g, ' ') : '');
+    const isPillar = req.body.isPillar === 'true' || req.body.isPillar === 'on' || req.body.isPillar === true;
+    const viewId = req.body.viewId || `${category}-default`;
+
+    const tags = req.body.tags
+      ? (Array.isArray(req.body.tags) ? req.body.tags : req.body.tags.split(','))
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean)
+      : [];
+
+    let contentHtml = req.body.content && req.body.content.trim();
+    const htmlFiles = req.files && req.files['file'];
+    if (!contentHtml && htmlFiles && htmlFiles[0]) contentHtml = htmlFiles[0].buffer.toString('utf8');
+    if (!contentHtml) contentHtml = '<p>No content provided for preview.</p>';
+
+    const posts = readPostsLocal();
+
+    // Auto cluster if not provided
+    if (!cluster) {
+      const detected = detectTopicCluster({ title, description, category, tags, contentHtml }, posts);
+      if (detected.cluster) {
+        cluster = detected.cluster;
+        clusterName = detected.clusterName;
+      }
+    }
+
+    const post = {
+      title,
+      slug,
+      category,
+      cluster,
+      clusterName,
+      isPillar,
+      tags,
+      description,
+      author,
+      date,
+      readTime,
+      image: '',
+      contentHtml,
+      view: { id: viewId },
+    };
+
+    const views = readViewsLocal();
+    const chosenView = views.find((v) => v.id === viewId) || { name: viewId };
+    const html = renderArticlePage(post, posts, { preview: true, viewName: chosenView.name });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    res.status(500).send(`<h3>Preview error:</h3><pre>${escapeHtml(err.message)}</pre>`);
+  }
+});
+
+// Live Clustering Feedback Endpoint
+app.post('/admin/api/detect-cluster', requireAuth, (req, res) => {
+  const { title, description, category, tags, content } = req.body;
+  const posts = readPostsLocal();
+  const tagsArr = tags
+    ? (Array.isArray(tags) ? tags : String(tags).split(',')).map((t) => t.trim().toLowerCase()).filter(Boolean)
+    : [];
+  const detected = detectTopicCluster(
+    { title, description, category, tags: tagsArr, contentHtml: content },
+    posts
+  );
+  res.json(detected);
+});
+
+// Create a new view from existing article, template, or custom HTML
+app.post('/admin/create-view', requireAuth, async (req, res) => {
+  try {
+    const { name, id: rawId, type, description, sourceArticle, customHtml } = req.body;
+    if (!name) return res.status(400).json({ error: 'View name is required' });
+    const viewId = slugify(rawId || name);
+    if (!isValidSlug(viewId)) return res.status(400).json({ error: 'Invalid view ID' });
+
+    const views = readViewsLocal();
+    if (views.some((v) => v.id === viewId)) {
+      return res.status(400).json({ error: `A view with ID "${viewId}" already exists.` });
+    }
+
+    let templateContent = '';
+    let derivedFrom = undefined;
+    const targetSource = `templates/article/${viewId}.html`;
+
+    if (type === 'article-derived' && sourceArticle) {
+      let sourceHtml = '';
+      const localSourcePath = path.join(REPO_ROOT, sourceArticle);
+      if (fs.existsSync(localSourcePath)) {
+        sourceHtml = fs.readFileSync(localSourcePath, 'utf8');
+      } else {
+        const ghFile = await getGithubFile(sourceArticle);
+        if (ghFile) sourceHtml = ghFile.content;
+      }
+      if (!sourceHtml) return res.status(404).json({ error: `Source article "${sourceArticle}" not found.` });
+
+      templateContent = extractViewFromHtml(sourceHtml);
+      derivedFrom = sourceArticle;
+    } else if (type === 'html' && customHtml) {
+      templateContent = customHtml;
+    } else {
+      templateContent = loadViewTemplateSync('education-default') || getStandardTemplateFallback();
+    }
+
+    const newView = {
+      id: viewId,
+      name: name.trim(),
+      type: type || 'template',
+      source: targetSource,
+      derivedFrom,
+      description: (description || `Custom view: ${name}`).trim(),
+      active: true,
+    };
+
+    views.push(newView);
+
+    const filesToCommit = [
+      { path: targetSource, content: templateContent },
+      { path: 'views/views.json', content: JSON.stringify(views, null, 2) + '\n' },
+    ];
+
+    await commitFiles(`Create view: ${newView.name}`, filesToCommit);
+
+    res.json({ ok: true, view: newView, message: `View "${newView.name}" created and registered!` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -603,15 +1305,16 @@ app.get('/admin/post/:category/:slug', requireAuth, async (req, res) => {
   if (!isValidSlug(slug)) return res.status(400).json({ error: 'Invalid slug' });
   try {
     const file = await getGithubFile(`public/${category}/${slug}.html`);
-    if (!file) return res.status(404).json({ error: 'Post not found' });
-    // Extract just the <article class="article-body"> inner HTML for editing
-    const match = file.content.match(/<article class="article-body">\s*([\s\S]*?)\s*<\/article>/);
-    res.json({ content: match ? match[1].trim() : file.content });
+    const content = file ? file.content : (fs.existsSync(path.join(PUBLIC_DIR, category, `${slug}.html`)) ? fs.readFileSync(path.join(PUBLIC_DIR, category, `${slug}.html`), 'utf8') : null);
+    if (!content) return res.status(404).json({ error: 'Post not found' });
+    const match = content.match(/<article class="article-body">\s*([\s\S]*?)\s*<\/article>/);
+    res.json({ content: match ? match[1].trim() : content });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// Add / Update Post with Dual Authoring & Automatic Clustering
 app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
   try {
     const title = (req.body.title || '').trim();
@@ -630,7 +1333,6 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
 
     const slug = slugify(req.body.slug || title);
 
-    // Security: validate slug to prevent path traversal
     if (!isValidSlug(slug)) {
       return res.status(400).json({ error: 'Invalid slug — only lowercase letters, numbers, and hyphens allowed.' });
     }
@@ -638,10 +1340,18 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
     let date = new Date().toISOString().slice(0, 10);
     const readTime = req.body.readTime && req.body.readTime.trim() ? req.body.readTime.trim() : '5 min read';
 
+    // ---- View Selection ----
+    const viewId = req.body.viewId || `${category}-default`;
+    const views = readViewsLocal();
+    const chosenView = views.find((v) => v.id === viewId) || { id: viewId, name: viewId, type: 'template' };
+
     // ---- Topic Cluster & Tags ----
     let cluster = req.body.cluster ? slugify(req.body.cluster) : '';
     let clusterName = (req.body.clusterName || '').trim() || (cluster ? cluster.replace(/-/g, ' ') : '');
     let isPillar = req.body.isPillar === 'true' || req.body.isPillar === 'on' || req.body.isPillar === true;
+    let clusterSource = cluster ? 'manual' : 'auto';
+    let clusterConfidence = 100;
+
     let tags = req.body.tags
       ? (Array.isArray(req.body.tags) ? req.body.tags : req.body.tags.split(','))
           .map((t) => t.trim().toLowerCase())
@@ -649,44 +1359,65 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
       : [];
 
     // ---- Handle cover image upload ----
-    let image = (req.body.image || '').trim(); // fallback: manual path field
+    let image = (req.body.image || '').trim();
     const imageFiles = req.files && req.files['coverImage'];
-    let coverImageFile = null; // will be added to filesToCommit later
+    let coverImageFile = null;
     if (imageFiles && imageFiles[0]) {
       const raw = imageFiles[0].buffer;
       const optimized = await optimizeImage(raw);
       const imagePath = `public/images/${slug}.webp`;
-      image = `images/${slug}.webp`;           // relative path for article HTML
+      image = `images/${slug}.webp`;
       coverImageFile = { path: imagePath, content: optimized.toString('base64'), encoding: 'base64' };
     }
 
-    // ---- Fetch live files from GitHub ----
+    // ---- Fetch live files from GitHub or local disk ----
     const [postsFile, homepageFile, catArchiveFile] = await Promise.all([
       getGithubFile('public/posts.json'),
       getGithubFile('public/index.html'),
       getGithubFile(`public/${category}/index.html`),
     ]);
 
-    // ---- Update posts registry ----
     let posts = postsFile ? JSON.parse(postsFile.content) : readPostsLocal();
     const idx = posts.findIndex((p) => p.slug === slug && p.category === category);
 
-    // If updating an existing post, preserve existing image, date, cluster and tags if not provided
+    // If updating an existing post, preserve fields if not supplied
     if (idx >= 0) {
       if (!image && posts[idx].image) image = posts[idx].image;
       if (posts[idx].date) date = posts[idx].date;
-      if (!cluster && posts[idx].cluster) cluster = posts[idx].cluster;
-      if (!clusterName && posts[idx].clusterName) clusterName = posts[idx].clusterName;
+      if (!cluster && posts[idx].cluster) {
+        cluster = posts[idx].cluster;
+        clusterName = posts[idx].clusterName || clusterName;
+        clusterSource = posts[idx].clusterSource || 'manual';
+      }
       if (req.body.isPillar === undefined && posts[idx].isPillar !== undefined) isPillar = posts[idx].isPillar;
       if (!req.body.tags && posts[idx].tags) tags = posts[idx].tags;
+    }
+
+    // ---- Automatic Clustering Logic if no cluster provided ----
+    if (!cluster) {
+      const newPostData = { title, description, category, tags, contentHtml };
+      const detected = detectTopicCluster(newPostData, posts);
+      if (detected.cluster && detected.confidence >= 60) {
+        cluster = detected.cluster;
+        clusterName = detected.clusterName;
+        clusterConfidence = detected.confidence;
+        clusterSource = 'auto';
+      }
     }
 
     const post = {
       title,
       slug,
       category,
+      view: {
+        id: chosenView.id,
+        type: chosenView.type,
+        name: chosenView.name,
+      },
       cluster,
       clusterName,
+      clusterSource,
+      clusterConfidence,
       isPillar,
       tags,
       description,
@@ -696,15 +1427,16 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
       image,
       contentHtml,
     };
+
     const { contentHtml: _drop, ...postMeta } = post;
     if (idx >= 0) posts[idx] = postMeta;
     else posts.push(postMeta);
     posts.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    // ---- Build all files to commit in one atomic operation ----
+    // ---- Build files to commit ----
     const filesToCommit = [];
 
-    // 1. Article page (rendered with cluster widget)
+    // 1. Article page
     filesToCommit.push({
       path: `public/${category}/${slug}.html`,
       content: renderArticlePage(post, posts),
@@ -725,38 +1457,46 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
       content: JSON.stringify(posts, null, 2) + '\n',
     });
 
-    // 4. Homepage (regenerated from live GitHub copy)
-    if (homepageFile) {
+    // 4. Homepage
+    const hpContent = homepageFile
+      ? homepageFile.content
+      : (fs.existsSync(INDEX_HTML) ? fs.readFileSync(INDEX_HTML, 'utf8') : null);
+    if (hpContent) {
       filesToCommit.push({
         path: 'public/index.html',
-        content: regenerateHomepage(homepageFile.content, posts),
+        content: regenerateHomepage(hpContent, posts),
       });
     }
 
-    // 5. Category archive (regenerated from live GitHub copy)
-    if (catArchiveFile) {
+    // 5. Category archive
+    const catContent = catArchiveFile
+      ? catArchiveFile.content
+      : (fs.existsSync(path.join(PUBLIC_DIR, category, 'index.html'))
+          ? fs.readFileSync(path.join(PUBLIC_DIR, category, 'index.html'), 'utf8')
+          : null);
+    if (catContent) {
       filesToCommit.push({
         path: `public/${category}/index.html`,
-        content: regenerateCategoryArchive(catArchiveFile.content, category, posts),
+        content: regenerateCategoryArchive(catContent, category, posts),
       });
     }
 
-    // 5. Sitemap & RSS
+    // 6. Sitemap & RSS
     filesToCommit.push({ path: 'public/sitemap.xml', content: regenerateSitemap(posts) });
     filesToCommit.push({ path: 'public/rss.xml', content: regenerateRss(posts) });
 
-    // 6. Cover image (optimized WebP) — added last so text files aren't affected
+    // 7. Cover image if uploaded
     if (coverImageFile) filesToCommit.push(coverImageFile);
 
-    // ---- Push everything to GitHub in one commit ----
-    await commitFilesToGithub(`Add/update post: ${title}`, filesToCommit);
+    // Save locally and commit to GitHub
+    await commitFiles(`Publish article: ${title}`, filesToCommit);
 
     const publicUrl = `${SITE_URL}/${category}/${slug}.html`;
     res.json({
       ok: true,
       slug,
       url: publicUrl,
-      message: `Published! GitHub Action is deploying to Firebase now. Live at: ${publicUrl}`,
+      message: `Published! Static HTML generated and deployed. Live at: ${publicUrl}`,
     });
   } catch (err) {
     console.error(err);

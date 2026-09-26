@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{title}} | {{siteName}}</title>
+<title>{{title}} | {{siteName}} Spotlight</title>
 <meta name="description" content="{{description}}">
 <link rel="canonical" href="{{canonicalUrl}}">
 {{robotsMeta}}
+
 <meta property="og:type" content="article">
-<meta property="og:site_name" content="The Daybook">
+<meta property="og:site_name" content="{{siteName}}">
 <meta property="og:title" content="{{title}}">
 <meta property="og:description" content="{{description}}">
 <meta property="og:url" content="{{canonicalUrl}}">
@@ -22,12 +23,11 @@
 <meta name="twitter:description" content="{{description}}">
 <meta name="twitter:image" content="{{featuredImage}}">
 
-<link rel="alternate" type="application/rss+xml" title="The Daybook feed" href="/rss.xml">
+<link rel="alternate" type="application/rss+xml" title="{{siteName}} feed" href="/rss.xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
-
 
 <script type="application/ld+json">
 {
@@ -61,7 +61,7 @@
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="masthead">
   <div class="wrap">
-    <div class="masthead-top"><p class="wordmark"><a href="/">The Daybook</a></p></div>
+    <div class="masthead-top"><p class="wordmark"><a href="/">{{siteName}}</a></p></div>
     <nav class="primary-nav" aria-label="Primary">
       <ul>
         <li><a href="/">Front page</a></li>
@@ -76,12 +76,12 @@
 <main id="main">
   {{breadcrumbs}}
   <div class="wrap">
-    <div class="article-header">
-      <p class="category-tag">{{categoryLabel}}{{topicPill}}{{pillarBadge}}</p>
-      <h1>{{title}}</h1>
-      
-      <p class="article-meta">
-        <span>By {{author}}</span>
+    <div class="article-header" style="background: linear-gradient(135deg, rgba(79,121,255,0.06), rgba(184,134,59,0.08)); border: 1px solid rgba(184,134,59,0.25); border-radius: 8px; padding: 1.8rem; margin-bottom: 2rem;">
+      <p class="category-tag"><span style="background:#b8860b;color:#fff;padding:.15rem .5rem;border-radius:3px;font-size:.72rem;letter-spacing:.06em;font-weight:700;">★ SPECIAL FEATURE</span> · {{categoryLabel}}{{topicPill}}{{pillarBadge}}</p>
+      <h1 style="font-size: 2.3rem; margin-top: .6rem; margin-bottom: .8rem;">{{title}}</h1>
+      <p style="font-size: 1.05rem; color: var(--ink-secondary, #444); font-family: var(--serif); line-height: 1.5; margin-bottom: 1rem;">{{description}}</p>
+      <p class="article-meta" style="margin: 0; padding-top: .8rem; border-top: 1px solid rgba(0,0,0,0.08);">
+        <span>By <strong>{{author}}</strong></span>
         <span>Published <time datetime="{{date}}">{{date}}</time></span>
         <span>{{readTime}}</span>
       </p>
@@ -90,9 +90,7 @@
     <article class="article-body">
       {{content}}
     </article>
-
     {{tagsHtml}}
-
     {{clusterBox}}
     {{relatedArticles}}
     {{crossCategoryArticles}}
@@ -102,7 +100,7 @@
 <footer class="site-footer">
   <div class="wrap">
     <div class="footer-bottom">
-      <span>© 2026 The Daybook. All rights reserved.</span>
+      <span>© 2026 {{siteName}}. All rights reserved.</span>
       <span><a href="/sitemap.xml">Sitemap</a> · <a href="/rss.xml">RSS</a></span>
     </div>
   </div>

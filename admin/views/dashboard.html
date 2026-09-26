@@ -20,6 +20,7 @@
     --green: #3ecf7e;
     --purple: #a07cff;
     --red: #ff6b6b;
+    --gold: #ffd285;
     --sidebar-w: 240px;
   }
 
@@ -117,7 +118,7 @@
   .topbar-title { font-size: 1.05rem; font-weight: 600; color: #fff; }
   .topbar-sub   { font-size: .78rem; color: var(--muted); margin-top: .1rem; }
 
-  .content { flex: 1; padding: 2rem; max-width: 980px; width: 100%; }
+  .content { flex: 1; padding: 2rem; max-width: 1080px; width: 100%; }
 
   /* ── Views ── */
   .view { display: none; }
@@ -226,18 +227,23 @@
     display: inline-flex; align-items: center; gap: .4rem;
     transition: all .15s ease;
     user-select: none;
+    text-decoration: none;
   }
   .btn:active { transform: scale(.98); }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-primary:hover { background: var(--accent-hover); }
   .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: #20273a; border-color: var(--border-light); }
   .btn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
   .btn-cancel:hover { color: var(--text); border-color: var(--border-light); }
   .btn-sm { padding: .32rem .75rem; font-size: .78rem; border-radius: 6px; }
   .btn-edit { background: rgba(79,121,255,.12); color: #7faeff; }
   .btn-edit:hover { background: rgba(79,121,255,.22); color: #a4c5ff; }
-  .btn-view { background: rgba(62,207,126,.1); color: var(--green); text-decoration: none; }
+  .btn-view { background: rgba(62,207,126,.1); color: var(--green); }
   .btn-view:hover { background: rgba(62,207,126,.2); }
+  .btn-preview { background: rgba(160,124,255,.15); color: #c09fff; border: 1px solid rgba(160,124,255,.3); }
+  .btn-preview:hover { background: rgba(160,124,255,.25); }
 
   /* ── Status Banner ── */
   #status {
@@ -275,8 +281,8 @@
   .posts-table td { padding: .7rem .9rem; vertical-align: middle; }
   .post-thumb { width: 50px; height: 36px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); display: block; background: var(--bg); }
   .post-thumb-empty { width: 50px; height: 36px; border-radius: 6px; background: var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: .95rem; }
-  .post-title-text { font-size: .88rem; font-weight: 500; color: var(--text); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
-  .post-desc-text  { font-size: .74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; display: block; margin-top: .15rem; }
+  .post-title-text { font-size: .88rem; font-weight: 500; color: var(--text); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+  .post-desc-text  { font-size: .74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; display: block; margin-top: .15rem; }
   .post-date-text  { font-size: .76rem; color: var(--muted); white-space: nowrap; }
   .post-author-text { font-size: .76rem; color: var(--muted); white-space: nowrap; }
   .post-actions { display: flex; gap: .45rem; align-items: center; }
@@ -285,12 +291,35 @@
   .badge { display: inline-block; padding: .2rem .6rem; border-radius: 4px; font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
   .badge-education { background: rgba(79,121,255,.15); color: #7faeff; border: 1px solid rgba(79,121,255,.25); }
   .badge-news      { background: rgba(160,124,255,.15); color: #c09fff; border: 1px solid rgba(160,124,255,.25); }
+  .badge-view      { background: rgba(62,207,126,.15); color: #5fd37f; border: 1px solid rgba(62,207,126,.25); }
 
   /* ── Empty & spinner ── */
   .empty-state { text-align: center; color: var(--muted); padding: 3rem 1.5rem; font-size: .9rem; }
   .empty-icon  { font-size: 2rem; margin-bottom: .5rem; display: block; opacity: .7; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Modals ── */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(5,7,12,.82);
+    backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;
+    padding: 1.5rem;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal-box {
+    background: var(--surface); border: 1px solid var(--border-light); border-radius: 12px;
+    width: 100%; max-width: 900px; max-height: 90vh; display: flex; flex-direction: column;
+    box-shadow: 0 16px 40px rgba(0,0,0,.6); overflow: hidden;
+  }
+  .modal-header {
+    padding: 1.1rem 1.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+  .modal-footer {
+    padding: 1rem 1.5rem; border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: flex-end; gap: .8rem;
+  }
 
   /* ── Mobile Responsive ── */
   @media (max-width: 820px) {
@@ -340,6 +369,12 @@
       <span class="badge-count" id="count-clusters">—</span>
     </div>
 
+    <div class="nav-item" data-view="library" onclick="switchView('library', this)">
+      <span class="icon">🎨</span>
+      <span>View Library</span>
+      <span class="badge-count" id="count-library">—</span>
+    </div>
+
     <div class="nav-section" style="margin-top: 1rem;">Publish</div>
 
     <div class="nav-item" data-view="add" onclick="switchView('add', this)">
@@ -364,7 +399,10 @@
       <div class="topbar-title" id="topbarTitle">All Blogs</div>
       <div class="topbar-sub" id="topbarSub">Manage and edit your published articles</div>
     </div>
-    <button class="btn btn-primary btn-sm" onclick="switchView('add', document.querySelector('[data-view=add]'))">+ Add Blog</button>
+    <div style="display:flex;gap:.6rem;">
+      <button class="btn btn-secondary btn-sm" onclick="switchView('library', document.querySelector('[data-view=library]'))">🎨 View Library</button>
+      <button class="btn btn-primary btn-sm" onclick="switchView('add', document.querySelector('[data-view=add]'))">+ Add Blog</button>
+    </div>
   </div>
 
   <div class="content">
@@ -383,6 +421,10 @@
         <div class="stat-card" onclick="switchView('news', document.querySelector('[data-view=news]'))">
           <div class="stat-num" id="stat-news">—</div>
           <div class="stat-label">📡 News Blogs</div>
+        </div>
+        <div class="stat-card" onclick="switchView('library', document.querySelector('[data-view=library]'))">
+          <div class="stat-num" id="stat-views">—</div>
+          <div class="stat-label">🎨 Presentation Views</div>
         </div>
       </div>
 
@@ -468,11 +510,27 @@
       <div id="clustersGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.2rem; margin-bottom: 2rem;"></div>
     </div>
 
+    <!-- ── View: View Library ── -->
+    <div class="view" id="view-library">
+      <div class="category-hero" style="background: linear-gradient(135deg, rgba(79,121,255,.12), rgba(160,124,255,.08)); border-color: rgba(79,121,255,.3);">
+        <div class="category-hero-text">
+          <h2>🎨 Reusable View Library <span class="badge" style="background:rgba(79,121,255,.2);color:#7faeff;" id="hero-count-views">5 views</span></h2>
+          <p>Decouple how articles look from what they say. Select, preview, or create reusable presentation structures derived from existing HTML articles or templates.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openCreateViewModal()">+ Create View</button>
+      </div>
+
+      <div id="viewsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.2rem; margin-bottom: 2rem;"></div>
+    </div>
+
     <!-- ── View: Add / Edit Blog ── -->
     <div class="view" id="view-add">
       <div class="card">
-        <div style="font-size: 1.05rem; font-weight: 600; color: #fff; margin-bottom: 1.2rem; display: flex; align-items: center; gap: .5rem;" id="formHeading">
-          <span>➕</span> <span>New Blog Post</span>
+        <div style="font-size: 1.05rem; font-weight: 600; color: #fff; margin-bottom: 1.2rem; display: flex; align-items: center; justify-content: space-between;" id="formHeading">
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <span>➕</span> <span>New Blog Post</span>
+          </div>
+          <button type="button" class="btn btn-preview btn-sm" onclick="previewCurrentPost()">👁 Live Preview</button>
         </div>
 
         <div class="edit-banner" id="editBanner">
@@ -480,16 +538,52 @@
           <button class="btn btn-cancel btn-sm" onclick="resetForm()">✕ Cancel Edit</button>
         </div>
 
+        <!-- ── Dual Authoring Mode Bar ── -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1.1rem;margin-bottom:1.5rem;">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.6rem;">Authoring Mode</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;">
+            <label id="modeCardStructured" onclick="setAuthoringMode('structured')" style="border:2px solid var(--accent);background:rgba(79,121,255,.08);border-radius:8px;padding:.8rem 1rem;cursor:pointer;display:block;">
+              <input type="radio" name="modeSelect" value="structured" checked style="display:none;">
+              <div style="font-weight:700;font-size:.9rem;color:#fff;">📝 Mode A: Structured Editor</div>
+              <p style="font-size:.76rem;color:var(--muted);margin-top:.25rem;">Standard structured workflow with category, tags, description, and article blocks.</p>
+            </label>
+            <label id="modeCardHtml" onclick="setAuthoringMode('html-view')" style="border:2px solid var(--border);background:var(--surface);border-radius:8px;padding:.8rem 1rem;cursor:pointer;display:block;">
+              <input type="radio" name="modeSelect" value="html-view" style="display:none;">
+              <div style="font-weight:700;font-size:.9rem;color:#fff;">🎨 Mode B: HTML / Existing View</div>
+              <p style="font-size:.76rem;color:var(--muted);margin-top:.25rem;">Select an existing presentation view or HTML article layout shell for your content.</p>
+            </label>
+          </div>
+        </div>
+
+        <!-- ── Active Presentation View Section ── -->
+        <div class="card" style="background:var(--surface2);border:1px solid var(--border);padding:1.2rem;margin-bottom:1.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.8rem;flex-wrap:wrap;gap:.6rem;">
+            <div>
+              <label style="margin:0;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#7faeff;">Presentation View (Template Shell)</label>
+              <p class="hint" style="margin-top:.15rem;">Independent presentation layer — controls typography, hero, and visual framing.</p>
+            </div>
+            <div style="display:flex;gap:.5rem;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="previewCurrentSelectedView()">👁 Preview View</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openExistingArticlePicker()">🔍 Pick from Existing Article</button>
+            </div>
+          </div>
+          <select id="fieldViewId" style="background:var(--surface);color:#fff;font-weight:500;" onchange="onViewDropdownChanged()">
+            <!-- Loaded dynamically from /admin/views -->
+          </select>
+          <div id="selectedViewDetails" style="margin-top:.5rem;font-size:.78rem;color:var(--muted);"></div>
+        </div>
+
         <form id="postForm">
           <input type="hidden" name="slug" id="slugField">
+          <input type="hidden" name="viewId" id="formViewIdHidden" value="education-default">
 
           <label>Title *</label>
-          <input type="text" name="title" id="fieldTitle" required placeholder="e.g. Why interest rates are moving again">
+          <input type="text" name="title" id="fieldTitle" required placeholder="e.g. How Antibodies Work in Immune Defense" oninput="triggerClusteringDebounce()">
 
           <div class="row2">
             <div>
-              <label>Category *</label>
-              <select name="category" id="fieldCategory" required>
+              <label>Category * (Primary Silo)</label>
+              <select name="category" id="fieldCategory" required onchange="onCategoryChanged()">
                 <option value="education">🎓 Educational</option>
                 <option value="news">📡 News Blog</option>
               </select>
@@ -504,9 +598,23 @@
             </div>
           </div>
 
+          <!-- ── Live Automatic Topic Clustering Feedback Card ── -->
+          <div style="background:rgba(184,134,59,.07);border:1px solid rgba(184,134,59,.25);border-radius:8px;padding:1rem 1.2rem;margin:1.2rem 0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;">
+              <div>
+                <span style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#ffd285;">🧠 Topic Clustering Intelligence</span>
+                <div id="clusterLiveLabel" style="font-size:.9rem;font-weight:600;color:#fff;margin-top:.2rem;">
+                  ⏳ Enter title &amp; tags to calculate semantic cluster...
+                </div>
+              </div>
+              <div id="clusterConfidenceBadge" style="display:none;"></div>
+            </div>
+            <p id="clusterLiveRecommendation" class="hint" style="color:#d4b378;margin-top:.3rem;"></p>
+          </div>
+
           <div class="row2">
             <div>
-              <label>Topic Cluster Identifier</label>
+              <label>Topic Cluster Identifier (Auto-assigned or Manual Override)</label>
               <input type="text" name="cluster" id="fieldCluster" list="clusterSuggestions" placeholder="e.g. human-biology-health">
               <datalist id="clusterSuggestions"></datalist>
               <p class="hint">Slug identifier used for the /topic/ hub page URL and sibling linking</p>
@@ -521,7 +629,7 @@
           <div class="row2">
             <div style="flex:2;">
               <label>Tags (Comma-separated)</label>
-              <input type="text" name="tags" id="fieldTags" placeholder="e.g. vaccines, immunology, health, medicine">
+              <input type="text" name="tags" id="fieldTags" placeholder="e.g. vaccines, immunology, health, medicine" oninput="triggerClusteringDebounce()">
             </div>
             <div style="display:flex;align-items:center;padding-top:1.4rem;">
               <label style="display:inline-flex;align-items:center;gap:.6rem;cursor:pointer;margin:0;font-size:.85rem;color:var(--text);text-transform:none;">
@@ -532,7 +640,7 @@
           </div>
 
           <label>SEO Description (~155 chars) *</label>
-          <textarea name="description" id="fieldDescription" class="desc" required placeholder="Two sentences summarizing the article for search engines, cards, and previews."></textarea>
+          <textarea name="description" id="fieldDescription" class="desc" required placeholder="Two sentences summarizing the article for search engines, cards, and previews." oninput="triggerClusteringDebounce()"></textarea>
 
           <label>Cover Image (Auto-optimized &amp; converted to WebP 1200×630 on GitHub)</label>
           <input type="file" name="coverImage" accept="image/jpeg,image/png,image/webp,image/gif" id="coverImageInput">
@@ -543,14 +651,22 @@
           </div>
           <p class="hint">Upload any JPG, PNG, or WebP. When editing, leave this empty to keep your existing cover image.</p>
 
-          <label>Article Content (Raw HTML)</label>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.2rem;margin-bottom:.3rem;">
+            <label style="margin:0;">Article Body Content</label>
+            <div style="display:flex;gap:.4rem;" id="contentFormatToggle">
+              <button type="button" class="btn btn-secondary btn-sm" id="btnContentStructured" onclick="setContentMode('structured')">Structured Blocks</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnContentRaw" onclick="setContentMode('raw')">Raw HTML</button>
+            </div>
+          </div>
+
           <textarea name="content" id="fieldContent" placeholder="<p>Write or paste your article HTML paragraphs here...</p>"></textarea>
 
           <label>Or Upload an .html File</label>
           <input type="file" name="file" accept=".html,.htm" id="fileInput">
 
-          <div style="display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; margin-top: 1.4rem;">
+          <div style="display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; margin-top: 1.6rem; padding-top: 1rem; border-top: 1px solid var(--border);">
             <button type="submit" class="btn btn-primary" id="submitBtn">🚀 Publish &amp; Deploy</button>
+            <button type="button" class="btn btn-preview" onclick="previewCurrentPost()">👁 Preview Article</button>
             <button type="button" class="btn btn-cancel" id="cancelBtn" style="display: none;" onclick="resetForm()">✕ Cancel</button>
           </div>
         </form>
@@ -562,11 +678,112 @@
   </div><!-- /content -->
 </div><!-- /main -->
 
+<!-- ── Modal: Create View ── -->
+<div class="modal-backdrop" id="modalCreateView">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div style="font-weight:700;color:#fff;font-size:1.05rem;">🎨 Create Reusable View</div>
+      <button class="btn btn-cancel btn-sm" onclick="closeCreateViewModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.84rem;color:var(--muted);margin-bottom:1.2rem;">
+        Add a new visual presentation structure to the View Library. You can extract the layout shell from any existing published article or create a custom HTML layout.
+      </p>
+
+      <label>Creation Source</label>
+      <select id="createViewSourceType" onchange="onCreateViewTypeChange()">
+        <option value="article-derived">📄 Extract presentation structure from existing published article</option>
+        <option value="template">📑 Clone existing default template</option>
+        <option value="html">💻 Custom HTML layout code</option>
+      </select>
+
+      <div id="sourceArticleRow" style="margin-top:1rem;">
+        <label>Select Published Article to Derive From</label>
+        <select id="createViewSourceArticle">
+          <option value="">Loading published articles...</option>
+        </select>
+        <p class="hint">The system extracts the layout, typography, CSS, and skeleton without keeping any of the old article's title, body, cluster, or content.</p>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <label>View Name *</label>
+        <input type="text" id="createViewName" placeholder="e.g. Investigative Deep Dive Layout">
+      </div>
+
+      <div style="margin-top:1rem;">
+        <label>View ID (Slug) *</label>
+        <input type="text" id="createViewId" placeholder="e.g. investigative-deep-dive">
+        <p class="hint">Unique identifier used in article models and template filenames.</p>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <label>Description</label>
+        <input type="text" id="createViewDesc" placeholder="e.g. Longform editorial layout with large pull quotes">
+      </div>
+
+      <div id="customHtmlRow" style="margin-top:1rem;display:none;">
+        <label>Custom Template HTML Code</label>
+        <textarea id="createViewCustomHtml" style="min-height:180px;" placeholder="<!DOCTYPE html><html>...Use {{title}}, {{content}}, {{clusterBox}}...</html>"></textarea>
+      </div>
+
+      <div id="createViewStatus" style="margin-top:1rem;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-cancel btn-sm" onclick="closeCreateViewModal()">Cancel</button>
+      <button type="button" class="btn btn-primary btn-sm" id="btnSubmitCreateView" onclick="submitCreateView()">+ Save &amp; Register View</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Article Picker as View ── -->
+<div class="modal-backdrop" id="modalArticlePicker">
+  <div class="modal-box" style="max-width:650px;">
+    <div class="modal-header">
+      <div style="font-weight:700;color:#fff;font-size:1.05rem;">🔍 Select Existing Article as View</div>
+      <button class="btn btn-cancel btn-sm" onclick="closeArticlePickerModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.84rem;color:var(--muted);margin-bottom:1rem;">
+        Pick any published article. The system will reuse its presentation shell for your new blog post while keeping your new content 100% independent.
+      </p>
+      <div id="pickerArticlesList" style="display:flex;flex-direction:column;gap:.6rem;max-height:350px;overflow-y:auto;">
+        <!-- Filled dynamically -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-cancel btn-sm" onclick="closeArticlePickerModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Unified Live Preview Modal (Desktop / Tablet / Mobile) ── -->
+<div class="modal-backdrop" id="modalPreview">
+  <div class="modal-box" style="max-width: 95vw; height: 92vh;">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <div style="font-weight:700;color:#fff;font-size:1rem;" id="previewModalTitle">👁 Live Renderer Preview</div>
+        <div style="display:flex;gap:.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.2rem;">
+          <button class="btn btn-secondary btn-sm" style="padding:.2rem .5rem;" onclick="setPreviewViewport('100%')">🖥 Desktop</button>
+          <button class="btn btn-secondary btn-sm" style="padding:.2rem .5rem;" onclick="setPreviewViewport('768px')">📱 Tablet</button>
+          <button class="btn btn-secondary btn-sm" style="padding:.2rem .5rem;" onclick="setPreviewViewport('390px')">📱 Mobile</button>
+        </div>
+      </div>
+      <button class="btn btn-cancel btn-sm" onclick="closePreviewModal()">✕ Close Preview</button>
+    </div>
+    <div class="modal-body" style="padding:0;display:flex;justify-content:center;background:#05070a;">
+      <iframe id="previewIframe" style="width:100%;height:100%;border:none;background:#fff;transition:width .2s ease;"></iframe>
+    </div>
+  </div>
+</div>
+
 <script>
 const SITE_URL = 'https://my-blog-55217.web.app';
 let allPosts = [];
+let allViews = [];
+let existingArticles = [];
 let filteredPosts = { all: [], education: [], news: [] };
 let currentView = 'all';
+let clusteringTimeout = null;
 
 // ── View Metadata ──
 const viewMeta = {
@@ -574,23 +791,21 @@ const viewMeta = {
   education: { title: 'Educational Blogs',  sub: 'Guides, explainers, and educational articles' },
   news:      { title: 'News Blogs',         sub: 'News stories, timely analysis, and reports' },
   clusters:  { title: 'Topic Clusters',     sub: 'Hub-and-spoke content silos, pillar guides & topic hubs' },
+  library:   { title: 'View Library',       sub: 'Reusable visual layouts, presentation shells, and templates' },
   add:       { title: 'Add / Edit Blog',    sub: 'Compose, upload images, and deploy articles' },
 };
 
 function switchView(viewId, el) {
   currentView = viewId;
 
-  // Active nav item styling
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const targetNav = el || document.querySelector(`[data-view="${viewId}"]`);
   if (targetNav) targetNav.classList.add('active');
 
-  // Display selected view
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const targetView = document.getElementById('view-' + viewId);
   if (targetView) targetView.classList.add('active');
 
-  // Update topbar texts
   if (viewMeta[viewId]) {
     document.getElementById('topbarTitle').textContent = viewMeta[viewId].title;
     document.getElementById('topbarSub').textContent   = viewMeta[viewId].sub;
@@ -600,9 +815,9 @@ function switchView(viewId, el) {
 function openAddForCategory(category) {
   switchView('add', document.querySelector('[data-view="add"]'));
   document.getElementById('fieldCategory').value = category;
+  onCategoryChanged();
 }
 
-// ── Helpers ──
 function esc(s) {
   return String(s || '').replace(/[&<>"']/g,
     c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -633,6 +848,8 @@ function renderTable(containerId, posts) {
       ? `<img class="post-thumb" src="${SITE_URL}/${p.image}" alt="" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'post-thumb-empty\\'>📄</div>';">`
       : `<div class="post-thumb-empty">📄</div>`;
 
+    const viewName = p.view ? (p.view.name || p.view.id || p.view) : `${p.category}-default`;
+
     return `
     <tr>
       <td style="width: 50px;">${thumb}</td>
@@ -640,7 +857,10 @@ function renderTable(containerId, posts) {
         <span class="post-title-text" title="${esc(p.title)}">${esc(p.title)}</span>
         <span class="post-desc-text" title="${esc(p.description)}">${esc(p.description)}</span>
       </td>
-      <td><span class="badge badge-${p.category}">${p.category === 'education' ? 'Educational' : 'News'}</span></td>
+      <td>
+        <span class="badge badge-${p.category}">${p.category === 'education' ? 'Educational' : 'News'}</span>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.2rem;">🎨 ${esc(viewName)}</div>
+      </td>
       <td class="post-date-text">${p.date || '—'}</td>
       <td class="post-author-text">${esc(p.author || 'Staff')}</td>
       <td>
@@ -658,7 +878,7 @@ function renderTable(containerId, posts) {
       <tr>
         <th>Cover</th>
         <th>Title &amp; Summary</th>
-        <th>Category</th>
+        <th>Category &amp; View</th>
         <th>Published</th>
         <th>Author</th>
         <th>Actions</th>
@@ -668,7 +888,7 @@ function renderTable(containerId, posts) {
   </table>`;
 }
 
-// ── Real-time Search / Filter ──
+// ── Search / Filter ──
 function filterTable(categoryKey, query) {
   const q = (query || '').toLowerCase().trim();
   let baseList = [];
@@ -687,6 +907,352 @@ function filterTable(categoryKey, query) {
 
   filteredPosts[categoryKey] = filtered;
   renderTable('posts-' + categoryKey, filtered);
+}
+
+// ── Render View Library ──
+function renderViewLibrary(views) {
+  const grid = document.getElementById('viewsGrid');
+  if (!grid) return;
+
+  document.getElementById('count-library').textContent = views.length;
+  document.getElementById('hero-count-views').textContent = `${views.length} views`;
+  document.getElementById('stat-views').textContent = views.length;
+
+  // Populate view dropdown in Add Post form
+  const select = document.getElementById('fieldViewId');
+  if (select) {
+    const currentVal = select.value;
+    select.innerHTML = views.map(v => `
+      <option value="${esc(v.id)}">${esc(v.name)} (${v.type || 'template'}) — Used by ${v.usageCount || 0} articles</option>
+    `).join('');
+    if (currentVal && views.some(v => v.id === currentVal)) {
+      select.value = currentVal;
+    }
+    onViewDropdownChanged();
+  }
+
+  grid.innerHTML = views.map(v => {
+    let typeBadgeColor = 'rgba(79,121,255,.15); color:#7faeff;';
+    if (v.type === 'article-derived') typeBadgeColor = 'rgba(62,207,126,.15); color:#5fd37f;';
+    if (v.type === 'html') typeBadgeColor = 'rgba(160,124,255,.15); color:#c09fff;';
+
+    return `
+    <div class="card" style="margin-bottom:0; display:flex; flex-direction:column; justify-content:space-between; border-color:var(--border);">
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.7rem; gap:.5rem;">
+          <div>
+            <h3 style="font-size:1.05rem; color:#fff; font-weight:700; margin-bottom:.2rem;">${esc(v.name)}</h3>
+            <span style="font-size:.72rem; color:var(--muted); font-family:monospace;">${esc(v.id)}</span>
+          </div>
+          <span class="badge" style="background:${typeBadgeColor}">${esc(v.type || 'template')}</span>
+        </div>
+
+        <p style="font-size:.82rem; color:var(--muted); margin-bottom:.9rem; line-height:1.45;">${esc(v.description || 'Standard presentation view')}</p>
+
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:.6rem .8rem; margin-bottom:.9rem; font-size:.75rem;">
+          <div style="color:var(--muted); margin-bottom:.2rem;">Template Source:</div>
+          <code style="color:#7faeff; word-break:break-all;">${esc(v.source)}</code>
+          ${v.derivedFrom ? `<div style="color:var(--muted);margin-top:.3rem;">Derived from: <span style="color:#fff;">${esc(v.derivedFrom)}</span></div>` : ''}
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; font-size:.78rem; padding-bottom:.6rem;">
+          <span style="color:var(--muted);">Current Usage:</span>
+          <strong style="color:${v.usageCount > 0 ? '#5fd37f' : 'var(--muted)'};">${v.usageCount || 0} articles</strong>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:.5rem; padding-top:.8rem; border-top:1px solid var(--border); margin-top:.5rem;">
+        <button class="btn btn-secondary btn-sm" style="flex:1; justify-content:center;" onclick="previewView('${esc(v.id)}', '${esc(v.name)}')">👁 Preview</button>
+        <button class="btn btn-primary btn-sm" style="flex:1; justify-content:center;" onclick="useViewInNewBlog('${esc(v.id)}')">+ Use in Blog</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function onViewDropdownChanged() {
+  const select = document.getElementById('fieldViewId');
+  const hiddenInput = document.getElementById('formViewIdHidden');
+  if (hiddenInput && select) hiddenInput.value = select.value;
+
+  const details = document.getElementById('selectedViewDetails');
+  if (details && select) {
+    const v = allViews.find(x => x.id === select.value);
+    if (v) {
+      details.innerHTML = `<strong>${esc(v.name)}</strong> (${esc(v.type || 'template')}) — Used by ${v.usageCount || 0} articles. ${esc(v.description || '')}`;
+    }
+  }
+}
+
+function previewCurrentSelectedView() {
+  const select = document.getElementById('fieldViewId');
+  if (select && select.value) {
+    const v = allViews.find(x => x.id === select.value);
+    previewView(select.value, v ? v.name : select.value);
+  }
+}
+
+function previewView(viewId, viewName) {
+  const modal = document.getElementById('modalPreview');
+  const iframe = document.getElementById('previewIframe');
+  const title = document.getElementById('previewModalTitle');
+  title.textContent = `👁 View Preview: ${viewName || viewId}`;
+  iframe.src = `/admin/preview/view/${viewId}`;
+  modal.classList.add('show');
+}
+
+function setPreviewViewport(width) {
+  document.getElementById('previewIframe').style.width = width;
+}
+
+function closePreviewModal() {
+  document.getElementById('modalPreview').classList.remove('show');
+  document.getElementById('previewIframe').src = 'about:blank';
+}
+
+function useViewInNewBlog(viewId) {
+  switchView('add', document.querySelector('[data-view="add"]'));
+  const select = document.getElementById('fieldViewId');
+  if (select) select.value = viewId;
+  onViewDropdownChanged();
+  setAuthoringMode('html-view');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Dual Authoring Mode Toggles ──
+function setAuthoringMode(mode) {
+  const cardStructured = document.getElementById('modeCardStructured');
+  const cardHtml = document.getElementById('modeCardHtml');
+
+  if (mode === 'html-view') {
+    cardStructured.style.border = '2px solid var(--border)';
+    cardStructured.style.background = 'var(--surface)';
+    cardHtml.style.border = '2px solid var(--accent)';
+    cardHtml.style.background = 'rgba(79,121,255,.08)';
+  } else {
+    cardStructured.style.border = '2px solid var(--accent)';
+    cardStructured.style.background = 'rgba(79,121,255,.08)';
+    cardHtml.style.border = '2px solid var(--border)';
+    cardHtml.style.background = 'var(--surface)';
+  }
+}
+
+function setContentMode(mode) {
+  const btnStruct = document.getElementById('btnContentStructured');
+  const btnRaw = document.getElementById('btnContentRaw');
+  if (mode === 'raw') {
+    btnRaw.style.background = 'var(--accent)';
+    btnRaw.style.color = '#fff';
+    btnStruct.style.background = 'var(--surface2)';
+    btnStruct.style.color = 'var(--text)';
+    document.getElementById('fieldContent').placeholder = '<article class="custom-content">\n  <h2>Subheading</h2>\n  <p>Raw HTML content here...</p>\n</article>';
+  } else {
+    btnStruct.style.background = 'var(--accent)';
+    btnStruct.style.color = '#fff';
+    btnRaw.style.background = 'var(--surface2)';
+    btnRaw.style.color = 'var(--text)';
+    document.getElementById('fieldContent').placeholder = '<p>Write your article paragraphs here...</p>\n\n<h2>Section Header</h2>\n<p>Next paragraph...</p>';
+  }
+}
+
+function onCategoryChanged() {
+  const cat = document.getElementById('fieldCategory').value;
+  // If the currently selected view was the default of another category, adjust it
+  const select = document.getElementById('fieldViewId');
+  if (select && (select.value === 'education-default' || select.value === 'news-default')) {
+    select.value = `${cat}-default`;
+    onViewDropdownChanged();
+  }
+  triggerClusteringDebounce();
+}
+
+// ── Automatic Clustering Debounced Check ──
+function triggerClusteringDebounce() {
+  clearTimeout(clusteringTimeout);
+  clusteringTimeout = setTimeout(runClusteringDetection, 400);
+}
+
+async function runClusteringDetection() {
+  const title = document.getElementById('fieldTitle').value.trim();
+  const description = document.getElementById('fieldDescription').value.trim();
+  const category = document.getElementById('fieldCategory').value;
+  const tags = document.getElementById('fieldTags').value.trim();
+  const content = document.getElementById('fieldContent').value.trim();
+
+  if (!title && !tags) return;
+
+  try {
+    const res = await fetch('/admin/api/detect-cluster', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description, category, tags, content }),
+    });
+    const data = await res.json();
+    const label = document.getElementById('clusterLiveLabel');
+    const badge = document.getElementById('clusterConfidenceBadge');
+    const rec = document.getElementById('clusterLiveRecommendation');
+
+    if (data.cluster) {
+      label.innerHTML = `Suggested Cluster: <strong style="color:#ffd285;">${esc(data.clusterName || data.cluster)}</strong> (${esc(data.cluster)})`;
+      badge.textContent = `${data.confidence}% Confidence`;
+      badge.style.display = 'inline-block';
+      rec.innerHTML = `Auto-clustering active. If left blank, this article will automatically publish to <strong>${esc(data.clusterName)}</strong> and update its topic hub. <a href="javascript:void(0)" onclick="applyDetectedCluster('${esc(data.cluster)}', '${esc(data.clusterName)}')">Apply explicitly</a>`;
+    } else {
+      label.textContent = 'ℹ️ No strong topic cluster detected yet. Post will publish as standalone or you can type a cluster slug below.';
+      badge.style.display = 'none';
+      rec.textContent = '';
+    }
+  } catch (e) {
+    // Silent fallback
+  }
+}
+
+function applyDetectedCluster(slug, name) {
+  document.getElementById('fieldCluster').value = slug;
+  document.getElementById('fieldClusterName').value = name;
+}
+
+// ── Live Article Preview with Unified Renderer ──
+async function previewCurrentPost() {
+  const form = document.getElementById('postForm');
+  const formData = new FormData(form);
+  const modal = document.getElementById('modalPreview');
+  const iframe = document.getElementById('previewIframe');
+  const title = document.getElementById('previewModalTitle');
+
+  title.textContent = `👁 Previewing: ${document.getElementById('fieldTitle').value || 'Draft Article'}`;
+  modal.classList.add('show');
+
+  try {
+    const res = await fetch('/admin/preview/article', {
+      method: 'POST',
+      body: formData,
+    });
+    const html = await res.text();
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+  } catch (err) {
+    iframe.srcdoc = `<h3>Failed to render preview:</h3><p>${esc(err.message)}</p>`;
+  }
+}
+
+// ── Existing Article Picker Modal ──
+function openExistingArticlePicker() {
+  const modal = document.getElementById('modalArticlePicker');
+  const list = document.getElementById('pickerArticlesList');
+
+  if (!existingArticles.length) {
+    list.innerHTML = `<div class="empty-state">No published articles found to extract views from.</div>`;
+  } else {
+    list.innerHTML = existingArticles.map(a => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+        <div>
+          <div style="font-weight:600;color:#fff;font-size:.88rem;">${esc(a.title)}</div>
+          <div style="font-size:.72rem;color:var(--muted);">${esc(a.path)}</div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" onclick="selectExistingArticleAsView('${esc(a.path)}', '${esc(a.title)}')">Use this Layout</button>
+      </div>
+    `).join('');
+  }
+
+  modal.classList.add('show');
+}
+
+function closeArticlePickerModal() {
+  document.getElementById('modalArticlePicker').classList.remove('show');
+}
+
+async function selectExistingArticleAsView(articlePath, articleTitle) {
+  closeArticlePickerModal();
+  setStatus('loading', `⏳ Deriving reusable presentation view from "${articleTitle}"…`);
+
+  // Prompt for view name
+  const viewName = prompt('Enter a name for this new reusable view:', `${articleTitle.slice(0, 30)} Layout`);
+  if (!viewName) { setStatus('', ''); return; }
+
+  const viewId = viewName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '').slice(0, 50);
+
+  try {
+    const res = await fetch('/admin/create-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: viewName,
+        id: viewId,
+        type: 'article-derived',
+        sourceArticle: articlePath,
+        description: `Extracted presentation structure from ${articleTitle}`,
+      }),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to extract view');
+
+    await loadViews();
+    const select = document.getElementById('fieldViewId');
+    if (select) select.value = viewId;
+    onViewDropdownChanged();
+    setAuthoringMode('html-view');
+    setStatus('ok', `✓ Successfully extracted and registered view "${viewName}". Now active for your article!`);
+  } catch (err) {
+    setStatus('err', '✗ ' + err.message);
+  }
+}
+
+// ── Create View Modal ──
+function openCreateViewModal() {
+  document.getElementById('modalCreateView').classList.add('show');
+  onCreateViewTypeChange();
+
+  // Populate source articles dropdown
+  const sel = document.getElementById('createViewSourceArticle');
+  sel.innerHTML = existingArticles.map(a => `
+    <option value="${esc(a.path)}">${esc(a.title)} (${esc(a.category)})</option>
+  `).join('');
+}
+
+function closeCreateViewModal() {
+  document.getElementById('modalCreateView').classList.remove('show');
+  document.getElementById('createViewStatus').innerHTML = '';
+}
+
+function onCreateViewTypeChange() {
+  const type = document.getElementById('createViewSourceType').value;
+  document.getElementById('sourceArticleRow').style.display = type === 'article-derived' ? 'block' : 'none';
+  document.getElementById('customHtmlRow').style.display = type === 'html' ? 'block' : 'none';
+}
+
+async function submitCreateView() {
+  const name = document.getElementById('createViewName').value.trim();
+  const id = document.getElementById('createViewId').value.trim();
+  const type = document.getElementById('createViewSourceType').value;
+  const description = document.getElementById('createViewDesc').value.trim();
+  const sourceArticle = document.getElementById('createViewSourceArticle').value;
+  const customHtml = document.getElementById('createViewCustomHtml').value;
+  const statusEl = document.getElementById('createViewStatus');
+
+  if (!name) {
+    statusEl.innerHTML = `<span style="color:#f08080;">Please provide a view name.</span>`;
+    return;
+  }
+
+  statusEl.innerHTML = `${spinner()} Saving &amp; registering view...`;
+
+  try {
+    const res = await fetch('/admin/create-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, id, type, description, sourceArticle, customHtml }),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to create view');
+
+    await loadViews();
+    closeCreateViewModal();
+    setStatus('ok', `✓ ${result.message}`);
+  } catch (err) {
+    statusEl.innerHTML = `<span style="color:#f08080;">✗ ${esc(err.message)}</span>`;
+  }
 }
 
 // ── Render Topic Clusters ──
@@ -718,7 +1284,6 @@ function renderClustersView(posts) {
   document.getElementById('count-clusters').textContent = clusters.length;
   document.getElementById('hero-count-clusters').textContent = `${clusters.length} cluster${clusters.length === 1 ? '' : 's'}`;
 
-  // Populate datalist suggestions for the form
   const datalist = document.getElementById('clusterSuggestions');
   if (datalist) {
     datalist.innerHTML = clusters.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -786,7 +1351,7 @@ function openAddForCluster(clusterId, clusterName) {
   document.getElementById('fieldClusterName').value = clusterName;
 }
 
-// ── Load All Posts ──
+// ── Load All Data ──
 async function loadPosts() {
   ['all','education','news'].forEach(id => {
     const el = document.getElementById('posts-' + id);
@@ -799,7 +1364,6 @@ async function loadPosts() {
     const edu  = allPosts.filter(p => p.category === 'education');
     const news = allPosts.filter(p => p.category === 'news');
 
-    // Update Counts & Badges
     document.getElementById('count-all').textContent       = allPosts.length;
     document.getElementById('count-education').textContent = edu.length;
     document.getElementById('count-news').textContent      = news.length;
@@ -827,14 +1391,31 @@ async function loadPosts() {
   }
 }
 
-// ── Edit a Post ──
+async function loadViews() {
+  try {
+    const res = await fetch('/admin/views');
+    allViews = await res.json();
+    renderViewLibrary(allViews);
+  } catch (e) {
+    console.error('Failed to load views', e);
+  }
+}
+
+async function loadExistingArticles() {
+  try {
+    const res = await fetch('/admin/existing-articles');
+    existingArticles = await res.json();
+  } catch (e) {
+    console.error('Failed to load existing articles', e);
+  }
+}
+
+// ── Edit Post ──
 async function startEdit(postJson) {
   const p = JSON.parse(postJson);
 
-  // Switch to Add/Edit view
   switchView('add', document.querySelector('[data-view="add"]'));
 
-  // Pre-fill form fields
   document.getElementById('slugField').value         = p.slug;
   document.getElementById('fieldTitle').value        = p.title || '';
   document.getElementById('fieldCategory').value     = p.category || 'education';
@@ -847,7 +1428,14 @@ async function startEdit(postJson) {
   document.getElementById('fieldDescription').value  = p.description || '';
   document.getElementById('fieldContent').value      = '⏳ Fetching article body from GitHub…';
 
-  // UI state for Edit Mode
+  // Set view dropdown
+  const viewId = p.view ? (p.view.id || p.view) : `${p.category}-default`;
+  const viewSelect = document.getElementById('fieldViewId');
+  if (viewSelect) {
+    viewSelect.value = viewId;
+    onViewDropdownChanged();
+  }
+
   document.getElementById('formHeading').innerHTML   = '<span>✏️</span> <span>Edit Blog Post</span>';
   document.getElementById('submitBtn').innerHTML     = '💾 Update &amp; Deploy';
   document.getElementById('cancelBtn').style.display = 'inline-flex';
@@ -855,7 +1443,6 @@ async function startEdit(postJson) {
   document.getElementById('editingLabel').textContent = `${p.category.toUpperCase()} / ${p.slug}`;
   setStatus('loading', '⏳ Fetching live article HTML from GitHub…');
 
-  // Show existing cover image preview if present
   if (p.image) {
     document.getElementById('previewImg').src = `${SITE_URL}/${p.image}`;
     document.getElementById('previewInfo').textContent = `Current cover: ${p.image} (upload a new file above only if you want to replace it)`;
@@ -864,7 +1451,6 @@ async function startEdit(postJson) {
     document.getElementById('imagePreview').style.display = 'none';
   }
 
-  // Fetch article HTML from server
   try {
     const r = await fetch(`/admin/post/${p.category}/${p.slug}`);
     const data = await r.json();
@@ -873,13 +1459,12 @@ async function startEdit(postJson) {
     setStatus('', '');
   } catch (e) {
     document.getElementById('fieldContent').value = '';
-    setStatus('err', '⚠ Could not fetch article body from GitHub: ' + e.message);
+    setStatus('err', '⚠ Could not fetch article body: ' + e.message);
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ── Reset Form ──
 function resetForm() {
   document.getElementById('postForm').reset();
   document.getElementById('slugField').value = '';
@@ -893,16 +1478,16 @@ function resetForm() {
   document.getElementById('cancelBtn').style.display = 'none';
   document.getElementById('editBanner').classList.remove('show');
   document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('clusterLiveLabel').textContent = '⏳ Enter title & tags to calculate semantic cluster...';
+  document.getElementById('clusterConfidenceBadge').style.display = 'none';
+  document.getElementById('clusterLiveRecommendation').textContent = '';
   setStatus('', '');
 }
 
-// ── Cover Image Live Preview ──
+// ── Cover Image Preview ──
 document.getElementById('coverImageInput').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (!file) {
-    // If resetting file input, hide preview unless in edit mode with existing image
-    return;
-  }
+  if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
     document.getElementById('previewImg').src = ev.target.result;
@@ -920,7 +1505,7 @@ document.getElementById('postForm').addEventListener('submit', async e => {
   const origHtml = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = `${spinner()} Committing…`;
-  setStatus('loading', '⏳ Committing changes to GitHub and triggering automatic deployment…');
+  setStatus('loading', '⏳ Generating static HTML, updating topic hubs & committing to GitHub…');
 
   try {
     const res = await fetch('/admin/add-post', { method: 'POST', body: new FormData(e.target) });
@@ -930,6 +1515,7 @@ document.getElementById('postForm').addEventListener('submit', async e => {
     setStatus('ok', `✓ ${result.message}${result.url ? '\n🔗 View live: ' + result.url : ''}`);
     resetForm();
     await loadPosts();
+    await loadViews();
   } catch (err) {
     setStatus('err', '✗ ' + err.message);
   } finally {
@@ -938,8 +1524,10 @@ document.getElementById('postForm').addEventListener('submit', async e => {
   }
 });
 
-// Initial load
+// Initial boot
 loadPosts();
+loadViews();
+loadExistingArticles();
 </script>
 </body>
 </html>

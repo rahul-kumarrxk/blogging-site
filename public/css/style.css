@@ -485,3 +485,88 @@ footer.site-footer {
   white-space: nowrap;
 }
 
+/* ── Cross-Category & Latest Related Recommendations ── */
+.recommendations-section {
+  margin-top: 2.8rem;
+  padding-top: 1.8rem;
+  border-top: 1px solid var(--rule);
+}
+.recommendations-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.recommendations-title {
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+.recommendations-sub {
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+}
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.3rem;
+}
+.recommendation-card {
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  text-decoration: none;
+}
+.recommendation-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--navy);
+  box-shadow: 0 4px 12px rgba(0,0,0,.06);
+}
+.recommendation-card .card-cat-badge {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: .45rem;
+  display: inline-block;
+}
+.recommendation-card h4 {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: var(--ink);
+  margin: 0 0 .5rem;
+}
+.recommendation-card p {
+  font-size: .84rem;
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0 0 .8rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.recommendation-card .card-meta {
+  font-size: .76rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: .6rem;
+  border-top: 1px dotted var(--rule);
+}
+
+
