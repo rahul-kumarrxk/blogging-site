@@ -4,17 +4,9 @@
  * - Add a post: title, category (education/news), description, author,
  *   optional cover image URL, and raw HTML content or an uploaded .html file
  * - On submit the server:
- *     1. writes public/<category>/<slug>.html using the site's article template
- *        with correct Article/NewsArticle JSON-LD, OG tags, canonical, etc.
- *     2. updates public/posts.json (the source of truth for listings)
- *     3. regenerates the "Latest" list on the homepage
- *     4. regenerates the matching category archive page's article list
- *     5. regenerates public/sitemap.xml and public/rss.xml from posts.json
- *     6. runs git add / commit / push, which triggers the GitHub Action
- *        that deploys public/ to Firebase Hosting
- *
- * Run with: node server.js   (from inside the admin/ folder)
- * Visit:    http://localhost:4000
+ *     1. generates new HTML for the article, homepage, category, sitemap, rss
+ *     2. uses the GitHub API to commit all changes directly to the repository
+ *        (this means it can be hosted anywhere, even serverless environments)
  */
 
 require('dotenv').config();
@@ -23,22 +15,28 @@ const session = require('express-session');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-const { execFile } = require('child_process');
+const { Octokit } = require('@octokit/rest');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'changeme123';
-const SITE_URL = process.env.SITE_URL || 'https://thedaybook.com';
+const SITE_URL = process.env.SITE_URL || 'https://my-blog-55217.web.app';
 const SITE_NAME = 'The Daybook';
+
+// GitHub Setup
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'rahul-kumarrxk';
+const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'blogging-site';
+const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
+
+const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(REPO_ROOT, 'public');
 const POSTS_JSON = path.join(PUBLIC_DIR, 'posts.json');
 const INDEX_HTML = path.join(PUBLIC_DIR, 'index.html');
-const SITEMAP_XML = path.join(PUBLIC_DIR, 'sitemap.xml');
-const RSS_XML = path.join(PUBLIC_DIR, 'rss.xml');
 
 const CATEGORIES = {
   education: { label: 'Education', schemaType: 'Article' },
@@ -83,13 +81,6 @@ function escapeHtml(str) {
 function readPosts() {
   if (!fs.existsSync(POSTS_JSON)) return [];
   return JSON.parse(fs.readFileSync(POSTS_JSON, 'utf8'));
-}
-
-function writePosts(posts) {
-  // newest first
-  posts.sort((a, b) => new Date(b.date) - new Date(a.date));
-  fs.writeFileSync(POSTS_JSON, JSON.stringify(posts, null, 2) + '\n');
-  return posts;
 }
 
 // ---------- article page template ----------
@@ -209,7 +200,7 @@ function renderArticlePage(post) {
 `;
 }
 
-// ---------- regenerate homepage "Latest" list ----------
+// ---------- regenerate HTML strings ----------
 
 function articleRowHtml(post, pathPrefix) {
   const cat = CATEGORIES[post.category];
@@ -235,12 +226,12 @@ function regenerateHomepage(posts) {
     /<!-- LATEST-START -->[\s\S]*<!-- LATEST-END -->/,
     `<!-- LATEST-START -->\n${latest}\n      <!-- LATEST-END -->`
   );
-  fs.writeFileSync(INDEX_HTML, updated);
+  return { path: 'public/index.html', content: updated };
 }
 
 function regenerateCategoryArchive(category, posts) {
   const archivePath = path.join(PUBLIC_DIR, category, 'index.html');
-  if (!fs.existsSync(archivePath)) return;
+  if (!fs.existsSync(archivePath)) return null;
   const html = fs.readFileSync(archivePath, 'utf8');
   const items = posts
     .filter((p) => p.category === category)
@@ -250,10 +241,8 @@ function regenerateCategoryArchive(category, posts) {
     /<!-- ARTICLES-START -->[\s\S]*<!-- ARTICLES-END -->/,
     `<!-- ARTICLES-START -->\n${items}\n      <!-- ARTICLES-END -->`
   );
-  fs.writeFileSync(archivePath, updated);
+  return { path: `public/${category}/index.html`, content: updated };
 }
-
-// ---------- sitemap + rss ----------
 
 function regenerateSitemap(posts) {
   const staticUrls = [
@@ -280,7 +269,7 @@ ${u.lastmod ? `    <lastmod>${u.lastmod}</lastmod>\n` : ''}    <changefreq>${u.c
     )
     .join('\n');
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
-  fs.writeFileSync(SITEMAP_XML, xml);
+  return { path: 'public/sitemap.xml', content: xml };
 }
 
 function rfc822(dateStr) {
@@ -303,23 +292,41 @@ function regenerateRss(posts) {
     })
     .join('\n');
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n  <channel>\n    <title>${SITE_NAME}</title>\n    <link>${SITE_URL}/</link>\n    <description>Education and news for curious minds.</description>\n    <language>en-us</language>\n    <atom:link href="${SITE_URL}/rss.xml" rel="self" type="application/rss+xml"/>\n    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>\n${items}\n  </channel>\n</rss>\n`;
-  fs.writeFileSync(RSS_XML, xml);
+  return { path: 'public/rss.xml', content: xml };
 }
 
-// ---------- git ----------
+// ---------- GitHub API Publisher ----------
 
-function gitPublish(commitMessage) {
-  return new Promise((resolve, reject) => {
-    execFile('git', ['add', '-A'], { cwd: REPO_ROOT }, (err) => {
-      if (err) return reject(err);
-      execFile('git', ['commit', '-m', commitMessage], { cwd: REPO_ROOT }, (err2, out2, errOut2) => {
-        if (err2 && !/nothing to commit/i.test(out2 + errOut2)) return reject(err2);
-        execFile('git', ['push'], { cwd: REPO_ROOT }, (err3, out3, errOut3) => {
-          if (err3) return reject(new Error(errOut3 || err3.message));
-          resolve();
-        });
-      });
-    });
+async function commitFilesToGithub(message, files) {
+  if (!GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not set in environment.");
+
+  // 1. Get current commit
+  const refRes = await octokit.git.getRef({ owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, ref: \`heads/\${GITHUB_BRANCH}\` });
+  const commitSha = refRes.data.object.sha;
+  
+  // 2. Get current commit's tree
+  const commitRes = await octokit.git.getCommit({ owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, commit_sha: commitSha });
+  const treeSha = commitRes.data.tree.sha;
+  
+  // 3. Create tree for new files
+  const tree = files.map(f => ({
+    path: f.path,
+    mode: '100644',
+    type: 'blob',
+    content: f.content
+  }));
+  
+  // 4. Create new tree on top of base tree
+  const newTreeRes = await octokit.git.createTree({ owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, base_tree: treeSha, tree });
+  
+  // 5. Create new commit
+  const newCommitRes = await octokit.git.createCommit({
+    owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, message, tree: newTreeRes.data.sha, parents: [commitSha]
+  });
+  
+  // 6. Update reference
+  await octokit.git.updateRef({
+    owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, ref: \`heads/\${GITHUB_BRANCH}\`, sha: newCommitRes.data.sha
   });
 }
 
@@ -364,28 +371,45 @@ app.post('/admin/add-post', requireAuth, upload.single('file'), async (req, res)
 
     const post = { title, slug, category, description, author, date, readTime, image, contentHtml };
 
-    const categoryDir = path.join(PUBLIC_DIR, category);
-    if (!fs.existsSync(categoryDir)) fs.mkdirSync(categoryDir, { recursive: true });
-    fs.writeFileSync(path.join(categoryDir, `${slug}.html`), renderArticlePage(post));
+    // Prepare files for GitHub Commit
+    const filesToCommit = [];
 
+    // 1. Article Page
+    filesToCommit.push({
+      path: \`public/\${category}/\${slug}.html\`,
+      content: renderArticlePage(post)
+    });
+
+    // 2. Posts.json
     let posts = readPosts();
     const { contentHtml: _drop, ...postMeta } = post; // keep contentHtml out of the lightweight registry
     const idx = posts.findIndex((p) => p.slug === slug && p.category === category);
     if (idx >= 0) posts[idx] = postMeta;
     else posts.push(postMeta);
-    posts = writePosts(posts);
+    
+    // Sort newest first
+    posts.sort((a, b) => new Date(b.date) - new Date(a.date));
+    filesToCommit.push({
+      path: 'public/posts.json',
+      content: JSON.stringify(posts, null, 2) + '\\n'
+    });
 
-    regenerateHomepage(posts);
-    regenerateCategoryArchive(category, posts);
-    regenerateSitemap(posts);
-    regenerateRss(posts);
+    // 3. Homepage, Category Archive, Sitemap, RSS
+    filesToCommit.push(regenerateHomepage(posts));
+    
+    const catArchive = regenerateCategoryArchive(category, posts);
+    if (catArchive) filesToCommit.push(catArchive);
+    
+    filesToCommit.push(regenerateSitemap(posts));
+    filesToCommit.push(regenerateRss(posts));
 
-    await gitPublish(`Add/update post: ${title}`);
+    // Send the whole batch to GitHub directly!
+    await commitFilesToGithub(\`Add/update post: \${title}\`, filesToCommit);
 
     res.json({
       ok: true,
       slug,
-      message: `Published to /${category}/${slug}.html and pushed. Sitemap and RSS updated. GitHub Action will deploy it shortly.`,
+      message: \`Published to /\${category}/\${slug}.html via GitHub API. GitHub Action will deploy it shortly.\`,
     });
   } catch (err) {
     console.error(err);
@@ -396,5 +420,5 @@ app.post('/admin/add-post', requireAuth, upload.single('file'), async (req, res)
 app.get('/', (req, res) => res.redirect('/admin'));
 
 app.listen(PORT, () => {
-  console.log(`Admin panel running at http://localhost:${PORT}`);
+  console.log(\`Admin panel running at http://localhost:\${PORT}\`);
 });
