@@ -26,6 +26,11 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://my-blog-55217.web.app/topic/human-biology-health.html</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
     <loc>https://my-blog-55217.web.app/education/how-vaccines-train-your-immune-system.html</loc>
     <lastmod>2026-09-26</lastmod>
     <changefreq>monthly</changefreq>

@@ -115,11 +115,156 @@ function wrapArticle(content) {
   return `<p>${content}</p>`;
 }
 
-function renderArticlePage(post) {
+function renderClusterBox(post, allPosts = []) {
+  if (!post.cluster) return '';
+  const clusterPosts = allPosts.filter((p) => p.cluster === post.cluster);
+  if (!clusterPosts.length) return '';
+
+  const clusterName = post.clusterName || (clusterPosts.find((p) => p.clusterName) || {}).clusterName || post.cluster.replace(/-/g, ' ');
+  const pillar = clusterPosts.find((p) => p.isPillar) || clusterPosts[0];
+  const siblings = clusterPosts.filter((p) => p.slug !== post.slug);
+
+  return `
+    <aside class="topic-cluster-box" aria-label="Topic cluster">
+      <div class="topic-cluster-header">
+        <h3 class="topic-cluster-title">In this Topic: ${escapeHtml(clusterName)}</h3>
+        <a class="topic-cluster-hub-link" href="/topic/${post.cluster}.html">Explore full topic hub →</a>
+      </div>
+      ${pillar && pillar.slug !== post.slug ? `
+      <div class="topic-cluster-pillar-lead">
+        <span class="pillar-badge" style="margin-bottom:.3rem;display:inline-block;">⭐ Lead Pillar Guide</span>
+        <h4 style="margin: .3rem 0;"><a href="/${pillar.category}/${pillar.slug}.html">${escapeHtml(pillar.title)}</a></h4>
+        <p>${escapeHtml(pillar.description)}</p>
+      </div>` : ''}
+      ${siblings.length ? `
+      <p style="font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.5rem;">Related Cluster Articles:</p>
+      <ul class="topic-cluster-list">
+        ${siblings.map((s) => `
+          <li>
+            <a href="/${s.category}/${s.slug}.html">${escapeHtml(s.title)}</a>
+            <span class="cluster-post-meta">${escapeHtml(s.readTime || '')}</span>
+          </li>
+        `).join('')}
+      </ul>` : `
+      <p style="font-size:.85rem;color:var(--muted);margin:0;">This is the foundation article of the <strong>${escapeHtml(clusterName)}</strong> topic cluster. New sub-topic explainers will link here.</p>`}
+    </aside>`;
+}
+
+function renderTopicHubPage(clusterId, posts) {
+  const clusterPosts = posts.filter((p) => p.cluster === clusterId);
+  const clusterName = (clusterPosts.find((p) => p.clusterName) || {}).clusterName || clusterId.replace(/-/g, ' ');
+  const pillar = clusterPosts.find((p) => p.isPillar) || clusterPosts[0];
+  const url = `${SITE_URL}/topic/${clusterId}.html`;
+
+  const rows = clusterPosts.map((p) => articleRowHtml(p, '/')).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(clusterName)} — Topic Hub | ${SITE_NAME}</title>
+<meta name="description" content="Explore in-depth articles, guides, and analysis on ${escapeHtml(clusterName)}.">
+<link rel="canonical" href="${url}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${SITE_NAME}">
+<meta property="og:title" content="${escapeHtml(clusterName)} — Topic Hub">
+<meta property="og:description" content="Explore in-depth articles, guides, and analysis on ${escapeHtml(clusterName)}.">
+<meta property="og:url" content="${url}">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap">
+    <div class="masthead-top"><p class="wordmark"><a href="/">${SITE_NAME}</a></p></div>
+    <nav class="primary-nav" aria-label="Primary">
+      <ul>
+        <li><a href="/">Front page</a></li>
+        <li><a href="/education/">Education</a></li>
+        <li><a href="/news/">News</a></li>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/contact.html">Contact</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main">
+  <p class="breadcrumb wrap"><a href="/">Home</a> / Topic Hubs / ${escapeHtml(clusterName)}</p>
+  <div class="archive-head wrap">
+    <span class="pillar-badge" style="margin-bottom:.5rem;">📚 Topic Cluster Hub</span>
+    <h1>${escapeHtml(clusterName)}</h1>
+    <p>Comprehensive knowledge base and structured explainers exploring ${escapeHtml(clusterName)}. (${clusterPosts.length} article${clusterPosts.length === 1 ? '' : 's'})</p>
+  </div>
+
+  <div class="ledger wrap" style="grid-template-columns: 2fr 1fr;">
+    <section aria-label="Cluster articles">
+      ${pillar ? `
+      <div class="topic-cluster-pillar-lead" style="margin-top:1.5rem;padding:1.4rem;">
+        <span class="pillar-badge" style="margin-bottom:.5rem;">⭐ Lead Pillar Guide</span>
+        <h3 style="font-size:1.35rem;margin:.4rem 0;"><a href="/${pillar.category}/${pillar.slug}.html">${escapeHtml(pillar.title)}</a></h3>
+        <p style="font-size:.92rem;color:var(--muted);">${escapeHtml(pillar.description)}</p>
+        <p class="meta" style="margin-top:.6rem;font-size:.8rem;color:var(--muted);">By ${escapeHtml(pillar.author)} · ${pillar.date} · ${escapeHtml(pillar.readTime || '')}</p>
+      </div>` : ''}
+
+      <h2 style="margin-top:2rem;font-size:1.3rem;">All Articles in this Cluster</h2>
+      <!-- ARTICLES-START -->
+      ${rows || '<p style="color:var(--muted);padding:1.5rem 0;">No articles published in this cluster yet.</p>'}
+      <!-- ARTICLES-END -->
+    </section>
+
+    <aside class="sidebar">
+      <section aria-label="Categories">
+        <h2>Categories</h2>
+        <ul class="cat-list">
+          <li><a href="/education/">Education</a></li>
+          <li><a href="/news/">News</a></li>
+        </ul>
+      </section>
+      <section class="newsletter" aria-label="Newsletter signup">
+        <h2>Stay Updated</h2>
+        <p>Get notified as new articles are added to this topic.</p>
+        <form action="/subscribe" method="post">
+          <input type="email" name="email" placeholder="you@example.com" aria-label="Email address" required>
+          <button type="submit">Subscribe</button>
+        </form>
+      </section>
+    </aside>
+  </div>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-bottom">
+      <span>© ${new Date().getFullYear()} ${SITE_NAME}. All rights reserved.</span>
+      <span><a href="/sitemap.xml">Sitemap</a> · <a href="/rss.xml">RSS</a></span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>`;
+}
+
+function renderArticlePage(post, allPosts = []) {
   const cat = CATEGORIES[post.category];
   const url = `${SITE_URL}/${post.category}/${post.slug}.html`;
   const img = post.image ? `${SITE_URL}/${post.image}` : `${SITE_URL}/images/og-default.jpg`;
   const isoDate = `${post.date}T09:00:00+05:30`;
+
+  const clusterBreadcrumb = post.cluster
+    ? ` / <a href="/topic/${post.cluster}.html">${escapeHtml(post.clusterName || post.cluster)}</a>`
+    : '';
+  const clusterPill = post.cluster
+    ? `<a class="cluster-pill" href="/topic/${post.cluster}.html">📚 ${escapeHtml(post.clusterName || post.cluster)}</a>`
+    : '';
+  const pillarBadge = post.isPillar
+    ? ` <span class="pillar-badge">⭐ Comprehensive Guide</span>`
+    : '';
+
+  const tagsWrap = (post.tags && post.tags.length)
+    ? `<div class="article-tags-wrap"><span class="article-tags-label">Tags:</span> ${post.tags.map((t) => `<span class="tag-chip">#${escapeHtml(t)}</span>`).join(' ')}</div>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -196,10 +341,10 @@ function renderArticlePage(post) {
   </div>
 </header>
 <main id="main">
-  <p class="breadcrumb wrap"><a href="/">Home</a> / <a href="/${post.category}/">${cat.label}</a> / ${escapeHtml(post.title)}</p>
+  <p class="breadcrumb wrap"><a href="/">Home</a> / <a href="/${post.category}/">${cat.label}</a>${clusterBreadcrumb} / ${escapeHtml(post.title)}</p>
   <div class="wrap">
     <div class="article-header">
-      <p class="category-tag">${cat.label}</p>
+      <p class="category-tag">${cat.label}${clusterPill}${pillarBadge}</p>
       <h1>${escapeHtml(post.title)}</h1>
       <p class="article-meta">
         <span>By ${escapeHtml(post.author)}</span>
@@ -210,6 +355,8 @@ function renderArticlePage(post) {
     <article class="article-body">
       ${wrapArticle(post.contentHtml)}
     </article>
+    ${tagsWrap}
+    ${renderClusterBox(post, allPosts)}
   </div>
 </main>
 <footer class="site-footer">
@@ -271,13 +418,19 @@ function regenerateSitemap(posts) {
     { loc: `${SITE_URL}/about.html`, changefreq: 'yearly', priority: '0.3' },
     { loc: `${SITE_URL}/contact.html`, changefreq: 'yearly', priority: '0.3' },
   ];
+  const clusterSlugs = [...new Set(posts.map((p) => p.cluster).filter(Boolean))];
+  const clusterUrls = clusterSlugs.map((slug) => ({
+    loc: `${SITE_URL}/topic/${slug}.html`,
+    changefreq: 'weekly',
+    priority: '0.85',
+  }));
   const postUrls = posts.map((p) => ({
     loc: `${SITE_URL}/${p.category}/${p.slug}.html`,
     lastmod: p.date,
     changefreq: 'monthly',
     priority: '0.8',
   }));
-  const all = [...staticUrls, ...postUrls];
+  const all = [...staticUrls, ...clusterUrls, ...postUrls];
   const body = all
     .map(
       (u) => `  <url>
@@ -485,6 +638,16 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
     let date = new Date().toISOString().slice(0, 10);
     const readTime = req.body.readTime && req.body.readTime.trim() ? req.body.readTime.trim() : '5 min read';
 
+    // ---- Topic Cluster & Tags ----
+    let cluster = req.body.cluster ? slugify(req.body.cluster) : '';
+    let clusterName = (req.body.clusterName || '').trim() || (cluster ? cluster.replace(/-/g, ' ') : '');
+    let isPillar = req.body.isPillar === 'true' || req.body.isPillar === 'on' || req.body.isPillar === true;
+    let tags = req.body.tags
+      ? (Array.isArray(req.body.tags) ? req.body.tags : req.body.tags.split(','))
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean)
+      : [];
+
     // ---- Handle cover image upload ----
     let image = (req.body.image || '').trim(); // fallback: manual path field
     const imageFiles = req.files && req.files['coverImage'];
@@ -508,17 +671,31 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
     let posts = postsFile ? JSON.parse(postsFile.content) : readPostsLocal();
     const idx = posts.findIndex((p) => p.slug === slug && p.category === category);
 
-    // If updating an existing post, preserve existing image and date if not replaced
+    // If updating an existing post, preserve existing image, date, cluster and tags if not provided
     if (idx >= 0) {
-      if (!image && posts[idx].image) {
-        image = posts[idx].image;
-      }
-      if (posts[idx].date) {
-        date = posts[idx].date;
-      }
+      if (!image && posts[idx].image) image = posts[idx].image;
+      if (posts[idx].date) date = posts[idx].date;
+      if (!cluster && posts[idx].cluster) cluster = posts[idx].cluster;
+      if (!clusterName && posts[idx].clusterName) clusterName = posts[idx].clusterName;
+      if (req.body.isPillar === undefined && posts[idx].isPillar !== undefined) isPillar = posts[idx].isPillar;
+      if (!req.body.tags && posts[idx].tags) tags = posts[idx].tags;
     }
 
-    const post = { title, slug, category, description, author, date, readTime, image, contentHtml };
+    const post = {
+      title,
+      slug,
+      category,
+      cluster,
+      clusterName,
+      isPillar,
+      tags,
+      description,
+      author,
+      date,
+      readTime,
+      image,
+      contentHtml,
+    };
     const { contentHtml: _drop, ...postMeta } = post;
     if (idx >= 0) posts[idx] = postMeta;
     else posts.push(postMeta);
@@ -527,19 +704,28 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
     // ---- Build all files to commit in one atomic operation ----
     const filesToCommit = [];
 
-    // 1. Article page
+    // 1. Article page (rendered with cluster widget)
     filesToCommit.push({
       path: `public/${category}/${slug}.html`,
-      content: renderArticlePage(post),
+      content: renderArticlePage(post, posts),
     });
 
-    // 2. posts.json
+    // 2. Topic Hub page(s)
+    const allClusters = [...new Set(posts.map((p) => p.cluster).filter(Boolean))];
+    for (const c of allClusters) {
+      filesToCommit.push({
+        path: `public/topic/${c}.html`,
+        content: renderTopicHubPage(c, posts),
+      });
+    }
+
+    // 3. posts.json
     filesToCommit.push({
       path: 'public/posts.json',
       content: JSON.stringify(posts, null, 2) + '\n',
     });
 
-    // 3. Homepage (regenerated from live GitHub copy)
+    // 4. Homepage (regenerated from live GitHub copy)
     if (homepageFile) {
       filesToCommit.push({
         path: 'public/index.html',
@@ -547,7 +733,7 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
       });
     }
 
-    // 4. Category archive (regenerated from live GitHub copy)
+    // 5. Category archive (regenerated from live GitHub copy)
     if (catArchiveFile) {
       filesToCommit.push({
         path: `public/${category}/index.html`,

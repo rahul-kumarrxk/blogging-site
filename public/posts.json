@@ -3,6 +3,15 @@
     "title": "How Vaccines Train Your Immune System (Without Making You Sick)",
     "slug": "how-vaccines-train-your-immune-system",
     "category": "education",
+    "cluster": "human-biology-health",
+    "clusterName": "Human Biology & Health",
+    "isPillar": true,
+    "tags": [
+      "vaccines",
+      "immune-system",
+      "biology",
+      "health"
+    ],
     "description": "Vaccines don't fight disease directly — they teach your immune system to recognize a threat before it ever shows up. Here's the mechanism, step by step.",
     "author": "Priya Nathan",
     "date": "2026-09-26",

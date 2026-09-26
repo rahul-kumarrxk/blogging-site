@@ -334,6 +334,12 @@
       <span class="badge-count" id="count-news">—</span>
     </div>
 
+    <div class="nav-item" data-view="clusters" onclick="switchView('clusters', this)">
+      <span class="icon">🧩</span>
+      <span>Topic Clusters</span>
+      <span class="badge-count" id="count-clusters">—</span>
+    </div>
+
     <div class="nav-section" style="margin-top: 1rem;">Publish</div>
 
     <div class="nav-item" data-view="add" onclick="switchView('add', this)">
@@ -449,6 +455,19 @@
       </div>
     </div>
 
+    <!-- ── View: Topic Clusters ── -->
+    <div class="view" id="view-clusters">
+      <div class="category-hero" style="background: linear-gradient(135deg, rgba(184,134,59,.12), rgba(79,121,255,.06)); border-color: rgba(184,134,59,.3);">
+        <div class="category-hero-text">
+          <h2>🧩 Topic Clusters &amp; Pillar Guides <span class="badge" style="background:rgba(184,134,59,.2);color:#ffd285;" id="hero-count-clusters">0 clusters</span></h2>
+          <p>Organize content into structured topic silos. Each cluster features a central Pillar Guide that links bi-directionally to focused cluster explainers and dedicated topic hubs.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="switchView('add', document.querySelector('[data-view=add]'))">+ Add to Cluster</button>
+      </div>
+
+      <div id="clustersGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.2rem; margin-bottom: 2rem;"></div>
+    </div>
+
     <!-- ── View: Add / Edit Blog ── -->
     <div class="view" id="view-add">
       <div class="card">
@@ -482,6 +501,33 @@
             <div>
               <label>Read Time</label>
               <input type="text" name="readTime" id="fieldReadTime" placeholder="5 min read">
+            </div>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label>Topic Cluster Identifier</label>
+              <input type="text" name="cluster" id="fieldCluster" list="clusterSuggestions" placeholder="e.g. human-biology-health">
+              <datalist id="clusterSuggestions"></datalist>
+              <p class="hint">Slug identifier used for the /topic/ hub page URL and sibling linking</p>
+            </div>
+            <div>
+              <label>Cluster Display Name</label>
+              <input type="text" name="clusterName" id="fieldClusterName" placeholder="e.g. Human Biology &amp; Health">
+              <p class="hint">Friendly name displayed on cluster badges, cards, and topic hubs</p>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div style="flex:2;">
+              <label>Tags (Comma-separated)</label>
+              <input type="text" name="tags" id="fieldTags" placeholder="e.g. vaccines, immunology, health, medicine">
+            </div>
+            <div style="display:flex;align-items:center;padding-top:1.4rem;">
+              <label style="display:inline-flex;align-items:center;gap:.6rem;cursor:pointer;margin:0;font-size:.85rem;color:var(--text);text-transform:none;">
+                <input type="checkbox" name="isPillar" id="fieldIsPillar" style="width:16px;height:16px;accent-color:var(--accent);">
+                <span>⭐ Core Pillar / Hub Guide</span>
+              </label>
             </div>
           </div>
 
@@ -527,6 +573,7 @@ const viewMeta = {
   all:       { title: 'All Blogs',          sub: 'Manage and edit all published content' },
   education: { title: 'Educational Blogs',  sub: 'Guides, explainers, and educational articles' },
   news:      { title: 'News Blogs',         sub: 'News stories, timely analysis, and reports' },
+  clusters:  { title: 'Topic Clusters',     sub: 'Hub-and-spoke content silos, pillar guides & topic hubs' },
   add:       { title: 'Add / Edit Blog',    sub: 'Compose, upload images, and deploy articles' },
 };
 
@@ -642,6 +689,103 @@ function filterTable(categoryKey, query) {
   renderTable('posts-' + categoryKey, filtered);
 }
 
+// ── Render Topic Clusters ──
+function renderClustersView(posts) {
+  const grid = document.getElementById('clustersGrid');
+  if (!grid) return;
+
+  const clusterMap = {};
+  posts.forEach(p => {
+    if (!p.cluster) return;
+    if (!clusterMap[p.cluster]) {
+      clusterMap[p.cluster] = {
+        id: p.cluster,
+        name: p.clusterName || p.cluster.replace(/-/g, ' '),
+        pillar: null,
+        articles: [],
+        tags: new Set(),
+      };
+    }
+    const c = clusterMap[p.cluster];
+    c.articles.push(p);
+    if (p.isPillar) c.pillar = p;
+    if (p.tags && Array.isArray(p.tags)) {
+      p.tags.forEach(t => c.tags.add(t));
+    }
+  });
+
+  const clusters = Object.values(clusterMap);
+  document.getElementById('count-clusters').textContent = clusters.length;
+  document.getElementById('hero-count-clusters').textContent = `${clusters.length} cluster${clusters.length === 1 ? '' : 's'}`;
+
+  // Populate datalist suggestions for the form
+  const datalist = document.getElementById('clusterSuggestions');
+  if (datalist) {
+    datalist.innerHTML = clusters.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  }
+
+  if (!clusters.length) {
+    grid.innerHTML = `
+      <div class="card" style="grid-column: 1/-1; text-align: center; padding: 2.5rem; color: var(--muted);">
+        <div style="font-size: 2rem; margin-bottom: .5rem;">🧩</div>
+        <div>No topic clusters created yet.</div>
+        <p style="font-size: .82rem; margin-top: .4rem;">Add a cluster identifier (e.g. <code>human-biology-health</code>) when writing a blog post to automatically create a cluster silo and dedicated hub page.</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = clusters.map(c => {
+    const pillarPost = c.pillar || c.articles[0];
+    const tagsArr = Array.from(c.tags).slice(0, 6);
+
+    return `
+    <div class="card" style="margin-bottom:0; display:flex; flex-direction:column; justify-content:space-between;">
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.8rem; gap:.5rem;">
+          <div>
+            <h3 style="font-size:1.1rem; color:#fff; font-weight:700; margin-bottom:.2rem;">${esc(c.name)}</h3>
+            <span style="font-size:.72rem; color:var(--muted); font-family:monospace;">/topic/${c.id}.html</span>
+          </div>
+          <span class="badge" style="background:rgba(184,134,59,.15); color:#ffd285;">${c.articles.length} article${c.articles.length === 1 ? '' : 's'}</span>
+        </div>
+
+        ${pillarPost ? `
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:.75rem .9rem; margin-bottom:.9rem;">
+          <div style="font-size:.7rem; font-weight:700; color:#ffd285; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.2rem;">⭐ Pillar Hub Article</div>
+          <a href="/${pillarPost.category}/${pillarPost.slug}.html" target="_blank" style="font-size:.85rem; font-weight:600; color:var(--text); display:block; text-decoration:none;">${esc(pillarPost.title)}</a>
+        </div>` : ''}
+
+        <div style="font-size:.75rem; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:.05em; margin-bottom:.4rem;">Articles in this Silo:</div>
+        <ul style="list-style:none; padding:0; margin:0 0 1rem; font-size:.82rem;">
+          ${c.articles.slice(0, 4).map(a => `
+            <li style="padding:.28rem 0; border-bottom:1px solid rgba(255,255,255,.04); display:flex; justify-content:space-between; align-items:center;">
+              <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:230px;" title="${esc(a.title)}">${esc(a.title)}</span>
+              <button class="btn btn-edit btn-sm" style="padding:.15rem .45rem; font-size:.7rem;" onclick='startEdit(${JSON.stringify(JSON.stringify(a))})'>✏️</button>
+            </li>
+          `).join('')}
+          ${c.articles.length > 4 ? `<li style="font-size:.74rem; color:var(--muted); padding-top:.3rem;">+ ${c.articles.length - 4} more articles</li>` : ''}
+        </ul>
+
+        ${tagsArr.length ? `
+        <div style="display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:1rem;">
+          ${tagsArr.map(t => `<span class="badge" style="background:var(--surface2); color:var(--muted); border:1px solid var(--border); font-size:.65rem; text-transform:none;">#${esc(t)}</span>`).join('')}
+        </div>` : ''}
+      </div>
+
+      <div style="display:flex; gap:.6rem; padding-top:.8rem; border-top:1px solid var(--border); margin-top:.5rem;">
+        <button class="btn btn-primary btn-sm" style="flex:1; justify-content:center;" onclick="openAddForCluster('${esc(c.id)}', '${esc(c.name)}')">+ Add to Cluster</button>
+        <a class="btn btn-view btn-sm" href="${SITE_URL}/topic/${c.id}.html" target="_blank" rel="noopener">🔗 View Hub</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openAddForCluster(clusterId, clusterName) {
+  switchView('add', document.querySelector('[data-view="add"]'));
+  document.getElementById('fieldCluster').value = clusterId;
+  document.getElementById('fieldClusterName').value = clusterName;
+}
+
 // ── Load All Posts ──
 async function loadPosts() {
   ['all','education','news'].forEach(id => {
@@ -674,6 +818,7 @@ async function loadPosts() {
     renderTable('posts-all', allPosts);
     renderTable('posts-education', edu);
     renderTable('posts-news', news);
+    renderClustersView(allPosts);
   } catch (e) {
     ['all','education','news'].forEach(id => {
       const el = document.getElementById('posts-' + id);
@@ -695,6 +840,10 @@ async function startEdit(postJson) {
   document.getElementById('fieldCategory').value     = p.category || 'education';
   document.getElementById('fieldAuthor').value       = p.author || '';
   document.getElementById('fieldReadTime').value     = p.readTime || '';
+  document.getElementById('fieldCluster').value      = p.cluster || '';
+  document.getElementById('fieldClusterName').value  = p.clusterName || '';
+  document.getElementById('fieldIsPillar').checked   = !!p.isPillar;
+  document.getElementById('fieldTags').value         = Array.isArray(p.tags) ? p.tags.join(', ') : (p.tags || '');
   document.getElementById('fieldDescription').value  = p.description || '';
   document.getElementById('fieldContent').value      = '⏳ Fetching article body from GitHub…';
 
@@ -734,6 +883,10 @@ async function startEdit(postJson) {
 function resetForm() {
   document.getElementById('postForm').reset();
   document.getElementById('slugField').value = '';
+  document.getElementById('fieldCluster').value = '';
+  document.getElementById('fieldClusterName').value = '';
+  document.getElementById('fieldIsPillar').checked = false;
+  document.getElementById('fieldTags').value = '';
   document.getElementById('fieldContent').value = '';
   document.getElementById('formHeading').innerHTML   = '<span>➕</span> <span>New Blog Post</span>';
   document.getElementById('submitBtn').innerHTML     = '🚀 Publish &amp; Deploy';
