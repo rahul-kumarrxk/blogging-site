@@ -2,3 +2,6 @@ node_modules/
 admin/.env
 .DS_Store
 .firebase/
+admin/test-auth.js
+admin/rewrite.js
+admin/fix.js
