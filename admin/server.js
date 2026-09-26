@@ -435,13 +435,27 @@ app.get('/admin', requireAuth, (req, res) =>
 
 app.get('/admin/posts', requireAuth, async (req, res) => {
   try {
-    // Fetch posts.json from GitHub so we always have the live list on Vercel
     const file = await getGithubFile('public/posts.json');
     const posts = file ? JSON.parse(file.content) : [];
     res.json(posts);
   } catch (err) {
-    // Fallback to local disk when running locally
     res.json(readPostsLocal());
+  }
+});
+
+// Fetch a single article's body HTML so the edit form can be pre-filled
+app.get('/admin/post/:category/:slug', requireAuth, async (req, res) => {
+  const { category, slug } = req.params;
+  if (!CATEGORIES[category]) return res.status(400).json({ error: 'Invalid category' });
+  if (!isValidSlug(slug)) return res.status(400).json({ error: 'Invalid slug' });
+  try {
+    const file = await getGithubFile(`public/${category}/${slug}.html`);
+    if (!file) return res.status(404).json({ error: 'Post not found' });
+    // Extract just the <article class="article-body"> inner HTML for editing
+    const match = file.content.match(/<article class="article-body">\s*([\s\S]*?)\s*<\/article>/);
+    res.json({ content: match ? match[1].trim() : file.content });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -3,142 +3,354 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Admin — Add Post</title>
+<title>The Daybook — Admin</title>
 <style>
-  body { font-family: -apple-system, sans-serif; background:#0f1115; color:#e8e9ec; margin:0; }
-  header { display:flex; justify-content:space-between; align-items:center; padding:1rem 2rem; border-bottom:1px solid #262a33; }
-  main { max-width:680px; margin:2rem auto; padding:0 1rem; }
-  .card { background:#171a21; border:1px solid #262a33; border-radius:10px; padding:1.5rem; margin-bottom:1.5rem; }
-  label { display:block; margin:.85rem 0 .3rem; font-size:.9rem; color:#9aa0ac; }
-  input[type=text], input[type=url], textarea, select {
-    width:100%; padding:.6rem; border-radius:6px; border:1px solid #262a33; background:#0f1115; color:#e8e9ec; font-family:inherit;
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0b0d11; color: #e2e4e9; margin: 0; min-height: 100vh; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; border-bottom: 1px solid #1e2230; background: #0f1117; position: sticky; top: 0; z-index: 100; }
+  header h2 { margin: 0; font-size: 1.1rem; color: #fff; }
+  .header-actions { display: flex; align-items: center; gap: 1rem; }
+  main { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem 4rem; }
+
+  /* Cards */
+  .card { background: #141720; border: 1px solid #1e2230; border-radius: 12px; padding: 1.6rem; margin-bottom: 1.5rem; }
+  .card-title { font-size: 1rem; font-weight: 600; color: #fff; margin: 0 0 1.2rem; display: flex; align-items: center; gap: .5rem; }
+
+  /* Form */
+  label { display: block; margin: .9rem 0 .3rem; font-size: .82rem; font-weight: 500; color: #8b92a5; text-transform: uppercase; letter-spacing: .04em; }
+  input[type=text], textarea, select {
+    width: 100%; padding: .6rem .8rem; border-radius: 7px; border: 1px solid #1e2230;
+    background: #0b0d11; color: #e2e4e9; font-family: inherit; font-size: .92rem;
+    transition: border-color .15s;
   }
-  textarea { min-height:240px; font-family:monospace; font-size:.85rem; }
-  .row { display:flex; gap:1rem; }
-  .row > div { flex:1; }
-  button { margin-top:1.2rem; padding:.65rem 1.3rem; border:0; border-radius:6px; background:#5b8cff; color:#fff; font-weight:600; cursor:pointer; }
-  #status { margin-top:1rem; font-size:.9rem; white-space:pre-wrap; }
-  #status.ok { color:#5bffa0; }
-  #status.err { color:#ff6b6b; }
-  ul { padding-left:1.2rem; }
-  a { color:#5b8cff; }
-  .hint { font-size:.78rem; color:#6b7280; margin-top:.2rem; }
-  .logout { background:none !important; color:#9aa0ac !important; font-weight:400 !important; padding:0 !important; margin:0 !important; }
+  input[type=text]:focus, textarea:focus, select:focus { outline: none; border-color: #4f7cff; }
+  textarea { min-height: 220px; font-family: 'Menlo', 'Consolas', monospace; font-size: .82rem; resize: vertical; }
+  textarea.desc { min-height: 70px; font-family: inherit; font-size: .92rem; }
+  .row { display: flex; gap: 1rem; }
+  .row > div { flex: 1; }
+  .hint { font-size: .75rem; color: #555e73; margin-top: .25rem; }
+
+  /* Buttons */
+  .btn { padding: .55rem 1.2rem; border: 0; border-radius: 7px; font-weight: 600; font-size: .88rem; cursor: pointer; transition: opacity .15s, transform .1s; display: inline-flex; align-items: center; gap: .4rem; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: #4f7cff; color: #fff; margin-top: 1.2rem; }
+  .btn-primary:hover { opacity: .88; }
+  .btn-ghost { background: none; color: #8b92a5; padding: 0; margin: 0; font-weight: 400; }
+  .btn-ghost:hover { color: #e2e4e9; }
+  .btn-sm { padding: .35rem .75rem; font-size: .78rem; margin-top: 0; border-radius: 5px; }
+  .btn-edit { background: #1e2a4a; color: #7faeff; }
+  .btn-edit:hover { background: #253460; }
+  .btn-view { background: #1a2a1e; color: #6ecf85; }
+  .btn-view:hover { background: #1f3526; }
+  .btn-cancel { background: #1e2230; color: #8b92a5; margin-top: 1rem; }
+  .btn-cancel:hover { background: #252b3b; }
+
+  /* Status */
+  #status { margin-top: 1rem; font-size: .88rem; white-space: pre-wrap; line-height: 1.6; padding: .6rem .9rem; border-radius: 7px; display: none; }
+  #status.ok { display: block; background: #0e2019; color: #5fd37f; border: 1px solid #1a4029; }
+  #status.err { display: block; background: #21100e; color: #f08080; border: 1px solid #4a1e1b; }
+  #status.loading { display: block; background: #111520; color: #8b92a5; border: 1px solid #1e2230; }
+
+  /* Category badge */
+  .badge { display: inline-block; padding: .18rem .55rem; border-radius: 4px; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .badge-education { background: #1a2a3e; color: #7fb8ff; }
+  .badge-news { background: #2a1a2e; color: #c07fff; }
+
+  /* Posts table */
+  .posts-table { width: 100%; border-collapse: collapse; }
+  .posts-table thead th { text-align: left; font-size: .75rem; font-weight: 600; color: #555e73; text-transform: uppercase; letter-spacing: .05em; padding: .5rem .75rem; border-bottom: 1px solid #1e2230; }
+  .posts-table tbody tr { border-bottom: 1px solid #1a1d26; transition: background .12s; }
+  .posts-table tbody tr:hover { background: #161922; }
+  .posts-table td { padding: .65rem .75rem; vertical-align: middle; }
+  .post-title-cell { max-width: 320px; }
+  .post-title { font-size: .9rem; font-weight: 500; color: #e2e4e9; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .post-desc { font-size: .75rem; color: #555e73; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; display: block; }
+  .post-thumb { width: 48px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #1e2230; }
+  .post-thumb-empty { width: 48px; height: 36px; border-radius: 4px; background: #1e2230; display: flex; align-items: center; justify-content: center; color: #353b4e; font-size: .9rem; }
+  .post-date { font-size: .78rem; color: #555e73; white-space: nowrap; }
+  .post-actions { display: flex; gap: .4rem; }
+  .empty-state { text-align: center; color: #555e73; padding: 2.5rem; font-size: .9rem; }
+
+  /* Image preview */
+  #imagePreview { display: none; margin-top: .6rem; }
+  #previewImg { max-width: 100%; max-height: 160px; border-radius: 7px; border: 1px solid #1e2230; object-fit: cover; }
+  input[type=file] { width: 100%; padding: .5rem; border-radius: 7px; border: 1px solid #1e2230; background: #0b0d11; color: #8b92a5; font-size: .85rem; cursor: pointer; }
+  input[type=file]::-webkit-file-upload-button {
+    background: #1e2a4a; color: #7faeff; border: none; border-radius: 5px;
+    padding: .3rem .7rem; cursor: pointer; font-size: .8rem; margin-right: .5rem;
+  }
+
+  /* Form mode banner */
+  #editBanner { display: none; background: #1a2740; border: 1px solid #253460; border-radius: 8px; padding: .6rem 1rem; margin-bottom: 1rem; font-size: .85rem; color: #7faeff; display: flex; align-items: center; justify-content: space-between; }
+  #editBanner.hidden { display: none; }
+  #editBanner strong { color: #a8c8ff; }
+
+  a { color: #4f7cff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #1e2230; border-top-color: #4f7cff; border-radius: 50%; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 <header>
-  <h2 style="margin:0;">The Daybook — Admin</h2>
-  <form method="POST" action="/logout"><button type="submit" class="logout">Log out</button></form>
+  <h2>📰 The Daybook — Admin</h2>
+  <div class="header-actions">
+    <span id="headerMode" style="font-size:.82rem;color:#555e73;"></span>
+    <form method="POST" action="/logout" style="margin:0;">
+      <button type="submit" class="btn btn-ghost">Log out</button>
+    </form>
+  </div>
 </header>
+
 <main>
+
+  <!-- ── Editor Form ── -->
   <div class="card">
-    <h3>Add a new post</h3>
+    <div class="card-title">
+      <span id="formIcon">✏️</span>
+      <span id="formTitle">New Post</span>
+    </div>
+
+    <div id="editBanner" class="hidden">
+      Editing: <strong id="editingSlugLabel"></strong>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="resetForm()">✕ Cancel edit</button>
+    </div>
+
     <form id="postForm">
+      <input type="hidden" name="slug" id="slugField">
+
       <label>Title</label>
-      <input type="text" name="title" required placeholder="Why interest rates are moving again">
+      <input type="text" name="title" id="fieldTitle" required placeholder="Why interest rates are moving again">
 
       <div class="row">
         <div>
           <label>Category</label>
-          <select name="category" required>
+          <select name="category" id="fieldCategory" required>
             <option value="education">Education</option>
             <option value="news">News</option>
           </select>
         </div>
         <div>
-          <label>URL slug (optional)</label>
-          <input type="text" name="slug" placeholder="auto-generated from title">
-        </div>
-      </div>
-
-      <label>SEO description (used as meta description &amp; preview text, ~155 characters)</label>
-      <textarea name="description" style="min-height:70px;font-family:inherit;" required placeholder="One or two sentences summarizing the article for search results and social previews."></textarea>
-
-      <div class="row">
-        <div>
-          <label>Author name</label>
-          <input type="text" name="author" placeholder="The Daybook Staff">
+          <label>Author</label>
+          <input type="text" name="author" id="fieldAuthor" placeholder="The Daybook Staff">
         </div>
         <div>
           <label>Read time</label>
-          <input type="text" name="readTime" placeholder="6 min read">
+          <input type="text" name="readTime" id="fieldReadTime" placeholder="5 min read">
         </div>
       </div>
 
-      <label>Cover image (JPG, PNG, WebP — auto-optimized &amp; uploaded to GitHub)</label>
+      <label>SEO description (~155 chars)</label>
+      <textarea name="description" id="fieldDescription" class="desc" required placeholder="One or two sentences summarizing the article for search results."></textarea>
+
+      <label>Cover image (JPG / PNG / WebP — auto-optimized &amp; uploaded)</label>
       <input type="file" name="coverImage" accept="image/jpeg,image/png,image/webp,image/gif" id="coverImageInput">
-      <div id="imagePreview" style="display:none;margin-top:.6rem;">
-        <img id="previewImg" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #262a33;object-fit:cover;" alt="Preview">
+      <div id="imagePreview">
+        <img id="previewImg" alt="Preview">
         <p class="hint" id="previewInfo"></p>
       </div>
-      <p class="hint">Auto-resized to max 1200×630 and converted to WebP. Leave empty for no cover image.</p>
+      <p class="hint">Resized to max 1200×630 &amp; converted to WebP automatically. Leave empty to keep existing cover.</p>
 
-      <label>Article content — raw HTML (paste here, OR upload a file below)</label>
-      <textarea name="content" placeholder="&lt;p&gt;Your article content, with &lt;h2&gt; subheads as needed...&lt;/p&gt;"></textarea>
+      <label>Article content — raw HTML</label>
+      <textarea name="content" id="fieldContent" placeholder="<p>Your article content...</p>"></textarea>
 
       <label>Or upload an .html file</label>
       <input type="file" name="file" accept=".html,.htm">
 
-      <button type="submit">Publish & deploy</button>
+      <div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;">
+        <button type="submit" class="btn btn-primary" id="submitBtn">🚀 Publish &amp; deploy</button>
+        <button type="button" class="btn btn-cancel btn-sm" id="cancelBtn" style="display:none;" onclick="resetForm()">✕ Cancel edit</button>
+      </div>
     </form>
     <div id="status"></div>
   </div>
 
+  <!-- ── Published Posts ── -->
   <div class="card">
-    <h3>Published posts</h3>
-    <ul id="postList"></ul>
+    <div class="card-title">
+      📋 Published Posts
+      <span id="postCount" style="font-size:.78rem;color:#555e73;font-weight:400;margin-left:.3rem;"></span>
+    </div>
+    <div id="postsContainer">
+      <div class="empty-state"><span class="spinner"></span> Loading posts…</div>
+    </div>
   </div>
+
 </main>
 
 <script>
-async function loadPosts() {
-  const res = await fetch('/admin/posts');
-  const posts = await res.json();
-  const list = document.getElementById('postList');
-  list.innerHTML = posts.map(p =>
-    `<li><a href="${p.slug}" target="_blank">${p.title}</a> — ${p.category}, ${p.date}${
-      p.image ? ` <img src="/${p.image}" style="height:20px;vertical-align:middle;border-radius:3px;margin-left:4px;">` : ''
-    }</li>`
-  ).join('') || '<li>No posts yet</li>';
-}
-loadPosts();
+const SITE_URL = ''; // relative; Vercel admin won't have direct access to public site
+let allPosts = [];
+let editingPost = null;
 
-// Cover image preview
+// ── Load posts table ──
+async function loadPosts() {
+  try {
+    const res = await fetch('/admin/posts');
+    allPosts = await res.json();
+    renderTable(allPosts);
+  } catch (e) {
+    document.getElementById('postsContainer').innerHTML =
+      '<div class="empty-state">Failed to load posts.</div>';
+  }
+}
+
+function renderTable(posts) {
+  document.getElementById('postCount').textContent = `(${posts.length})`;
+  const container = document.getElementById('postsContainer');
+  if (!posts.length) {
+    container.innerHTML = '<div class="empty-state">No posts published yet.</div>';
+    return;
+  }
+
+  const rows = posts.map(p => {
+    const badge = `<span class="badge badge-${p.category}">${p.category}</span>`;
+    const thumb = p.image
+      ? `<img class="post-thumb" src="https://my-blog-55217.web.app/${p.image}" alt="" onerror="this.style.display='none'">`
+      : `<div class="post-thumb-empty">📄</div>`;
+    return `
+      <tr>
+        <td>${thumb}</td>
+        <td class="post-title-cell">
+          <span class="post-title" title="${escHtml(p.title)}">${escHtml(p.title)}</span>
+          <span class="post-desc">${escHtml(p.description || '')}</span>
+        </td>
+        <td>${badge}</td>
+        <td class="post-date">${p.date}</td>
+        <td><span style="font-size:.75rem;color:#555e73;">${escHtml(p.author || '')}</span></td>
+        <td>
+          <div class="post-actions">
+            <button class="btn btn-edit btn-sm" onclick="startEdit(${JSON.stringify(JSON.stringify(p))})">✏️ Edit</button>
+            <a class="btn btn-view btn-sm" href="https://my-blog-55217.web.app/${p.category}/${p.slug}.html" target="_blank">🔗 View</a>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <table class="posts-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Title</th>
+          <th>Category</th>
+          <th>Date</th>
+          <th>Author</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// ── Start editing a post ──
+async function startEdit(postJson) {
+  const p = JSON.parse(postJson);
+  editingPost = p;
+
+  // Scroll to form
+  document.getElementById('postForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Fill known fields from posts.json
+  document.getElementById('slugField').value = p.slug;
+  document.getElementById('fieldTitle').value = p.title || '';
+  document.getElementById('fieldCategory').value = p.category || 'education';
+  document.getElementById('fieldAuthor').value = p.author || '';
+  document.getElementById('fieldReadTime').value = p.readTime || '';
+  document.getElementById('fieldDescription').value = p.description || '';
+  document.getElementById('fieldContent').value = '⏳ Loading article body…';
+
+  // Update UI
+  document.getElementById('formIcon').textContent = '✏️';
+  document.getElementById('formTitle').textContent = 'Edit Post';
+  document.getElementById('submitBtn').textContent = '💾 Update & deploy';
+  document.getElementById('cancelBtn').style.display = 'inline-flex';
+  document.getElementById('editBanner').classList.remove('hidden');
+  document.getElementById('editingSlugLabel').textContent = `${p.category}/${p.slug}`;
+  document.getElementById('headerMode').textContent = `Editing: ${p.slug}`;
+  setStatus('loading', '⏳ Fetching article body from GitHub…');
+
+  // Fetch article body
+  try {
+    const r = await fetch(`/admin/post/${p.category}/${p.slug}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed');
+    document.getElementById('fieldContent').value = data.content;
+    setStatus('', '');
+  } catch (e) {
+    document.getElementById('fieldContent').value = '';
+    setStatus('err', '⚠ Could not load article body: ' + e.message);
+  }
+}
+
+// ── Reset form to "new post" mode ──
+function resetForm() {
+  editingPost = null;
+  document.getElementById('postForm').reset();
+  document.getElementById('slugField').value = '';
+  document.getElementById('fieldContent').value = '';
+  document.getElementById('formIcon').textContent = '✏️';
+  document.getElementById('formTitle').textContent = 'New Post';
+  document.getElementById('submitBtn').textContent = '🚀 Publish & deploy';
+  document.getElementById('cancelBtn').style.display = 'none';
+  document.getElementById('editBanner').classList.add('hidden');
+  document.getElementById('headerMode').textContent = '';
+  document.getElementById('imagePreview').style.display = 'none';
+  setStatus('', '');
+}
+
+// ── Cover image preview ──
 document.getElementById('coverImageInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
-  if (!file) { document.getElementById('imagePreview').style.display = 'none'; return; }
+  const preview = document.getElementById('imagePreview');
+  if (!file) { preview.style.display = 'none'; return; }
   const reader = new FileReader();
-  reader.onload = (ev) => {
+  reader.onload = ev => {
     document.getElementById('previewImg').src = ev.target.result;
     document.getElementById('previewInfo').textContent =
-      `Selected: ${file.name} (${(file.size / 1024).toFixed(0)} KB) — will be optimized to WebP on upload`;
-    document.getElementById('imagePreview').style.display = 'block';
+      `${file.name} · ${(file.size / 1024).toFixed(0)} KB → will be optimized to WebP`;
+    preview.style.display = 'block';
   };
   reader.readAsDataURL(file);
 });
 
+// ── Status helper ──
+function setStatus(type, msg) {
+  const el = document.getElementById('status');
+  el.className = type || '';
+  el.textContent = msg;
+}
+
+// ── Form submit ──
 document.getElementById('postForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const status = document.getElementById('status');
-  status.className = ''; status.textContent = 'Publishing…';
-  const form = e.target;
-  const data = new FormData(form);
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Publishing…';
+  setStatus('loading', '⏳ Publishing and committing to GitHub…');
+
+  const data = new FormData(e.target);
   try {
     const res = await fetch('/admin/add-post', { method: 'POST', body: data });
     const result = await res.json();
     if (!res.ok) throw new Error(result.error || 'Failed');
-    status.className = 'ok';
-    status.textContent = '✓ ' + result.message;
-    if (result.url) status.textContent += `\nLive URL: ${result.url}`;
-    form.reset();
-    document.getElementById('imagePreview').style.display = 'none';
+    setStatus('ok', `✓ ${result.message}${result.url ? '\nLive: ' + result.url : ''}`);
+    resetForm();
     loadPosts();
   } catch (err) {
-    status.className = 'err';
-    status.textContent = '✗ ' + err.message;
+    setStatus('err', '✗ ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editingPost ? '💾 Update & deploy' : '🚀 Publish & deploy';
   }
 });
+
+loadPosts();
 </script>
 </body>
 </html>
