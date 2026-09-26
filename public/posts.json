@@ -42,5 +42,30 @@
     "date": "2026-09-26",
     "readTime": "5 min read",
     "image": ""
+  },
+  {
+    "title": "How Immune Memory Works",
+    "slug": "how-immune-memory-works",
+    "category": "education",
+    "view": {
+      "id": "existing-vaccines-view",
+      "type": "article-derived",
+      "name": "Vaccine Guide Layout (Extracted)"
+    },
+    "cluster": "human-biology-health",
+    "clusterName": "Human Biology & Health",
+    "clusterSource": "auto",
+    "clusterConfidence": 95,
+    "isPillar": false,
+    "tags": [
+      "immune-system",
+      "memory-cells",
+      "biology"
+    ],
+    "description": "An in-depth guide to how memory B and T cells protect the body against reinfection.",
+    "author": "Dr. Marcus Bell",
+    "date": "2026-09-26",
+    "readTime": "5 min read",
+    "image": ""
   }
 ]
