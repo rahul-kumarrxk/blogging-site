@@ -3,353 +3,789 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Daybook — Admin</title>
+<title>The Daybook — Admin Panel</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0b0d11; color: #e2e4e9; margin: 0; min-height: 100vh; }
-  header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; border-bottom: 1px solid #1e2230; background: #0f1117; position: sticky; top: 0; z-index: 100; }
-  header h2 { margin: 0; font-size: 1.1rem; color: #fff; }
-  .header-actions { display: flex; align-items: center; gap: 1rem; }
-  main { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem 4rem; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* Cards */
-  .card { background: #141720; border: 1px solid #1e2230; border-radius: 12px; padding: 1.6rem; margin-bottom: 1.5rem; }
-  .card-title { font-size: 1rem; font-weight: 600; color: #fff; margin: 0 0 1.2rem; display: flex; align-items: center; gap: .5rem; }
+  :root {
+    --bg: #090b10;
+    --surface: #10131c;
+    --surface2: #161a27;
+    --border: #1d2235;
+    --border-light: #2a3148;
+    --text: #e2e5f0;
+    --muted: #626c8c;
+    --accent: #4f79ff;
+    --accent-hover: #3a63e8;
+    --green: #3ecf7e;
+    --purple: #a07cff;
+    --red: #ff6b6b;
+    --sidebar-w: 240px;
+  }
 
-  /* Form */
-  label { display: block; margin: .9rem 0 .3rem; font-size: .82rem; font-weight: 500; color: #8b92a5; text-transform: uppercase; letter-spacing: .04em; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 200;
+  }
+
+  .sidebar-brand {
+    padding: 1.3rem 1.2rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-brand .logo { font-size: 1.05rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: .5rem; }
+  .sidebar-brand .sub  { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+
+  .sidebar-nav { flex: 1; padding: 1rem 0; overflow-y: auto; }
+  .nav-section {
+    padding: .5rem 1.2rem .3rem;
+    font-size: .65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--muted);
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: .7rem;
+    padding: .65rem 1.2rem;
+    cursor: pointer;
+    font-size: .875rem; font-weight: 500;
+    color: var(--muted);
+    border-left: 3px solid transparent;
+    transition: all .15s ease;
+    user-select: none;
+  }
+  .nav-item .icon { font-size: 1rem; width: 22px; text-align: center; flex-shrink: 0; }
+  .nav-item .badge-count {
+    margin-left: auto;
+    background: var(--border);
+    color: var(--muted);
+    font-size: .68rem;
+    padding: .15rem .5rem;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(79,121,255,.1); color: var(--accent); border-left-color: var(--accent); }
+  .nav-item.active .badge-count { background: rgba(79,121,255,.2); color: var(--accent); }
+
+  .sidebar-footer {
+    padding: 1rem 1.2rem;
+    border-top: 1px solid var(--border);
+  }
+  .btn-logout {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: .6rem;
+    padding: .6rem .8rem; border: 1px solid var(--border);
+    border-radius: 8px; background: none; color: var(--muted);
+    font-size: .82rem; cursor: pointer; transition: all .15s;
+  }
+  .btn-logout:hover { background: var(--surface2); color: var(--text); border-color: var(--border-light); }
+
+  /* ── Main area ── */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-width: 0;
+  }
+
+  .topbar {
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-title { font-size: 1.05rem; font-weight: 600; color: #fff; }
+  .topbar-sub   { font-size: .78rem; color: var(--muted); margin-top: .1rem; }
+
+  .content { flex: 1; padding: 2rem; max-width: 980px; width: 100%; }
+
+  /* ── Views ── */
+  .view { display: none; }
+  .view.active { display: block; animation: fadeIn .2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Cards & Containers ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.6rem;
+    margin-bottom: 1.4rem;
+  }
+  .card-header-bar {
+    padding: 1.2rem 1.4rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .card-header-info { display: flex; align-items: center; gap: .7rem; }
+  .card-header-title { font-size: .95rem; font-weight: 600; color: #fff; }
+
+  /* ── Stats row ── */
+  .stats { display: flex; gap: 1rem; margin-bottom: 1.4rem; flex-wrap: wrap; }
+  .stat-card {
+    flex: 1; min-width: 160px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    cursor: pointer;
+    transition: border-color .15s, transform .1s;
+  }
+  .stat-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .stat-num { font-size: 1.8rem; font-weight: 700; color: #fff; }
+  .stat-label { font-size: .75rem; color: var(--muted); margin-top: .2rem; }
+
+  /* ── Category Banner ── */
+  .category-hero {
+    background: linear-gradient(135deg, rgba(79,121,255,.07), rgba(160,124,255,.03));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    margin-bottom: 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .category-hero-text h2 { font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: .3rem; display: flex; align-items: center; gap: .5rem; }
+  .category-hero-text p  { font-size: .82rem; color: var(--muted); }
+
+  /* ── Search bar inside table headers ── */
+  .search-box {
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: .35rem .7rem;
+    font-size: .82rem;
+    width: 240px;
+  }
+  .search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: .82rem;
+    width: 100%;
+    margin-left: .4rem;
+  }
+
+  /* ── Form Styling ── */
+  label { display: block; margin: 1rem 0 .3rem; font-size: .75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
   input[type=text], textarea, select {
-    width: 100%; padding: .6rem .8rem; border-radius: 7px; border: 1px solid #1e2230;
-    background: #0b0d11; color: #e2e4e9; font-family: inherit; font-size: .92rem;
+    width: 100%; padding: .65rem .9rem;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text);
+    font-family: inherit; font-size: .9rem;
     transition: border-color .15s;
   }
-  input[type=text]:focus, textarea:focus, select:focus { outline: none; border-color: #4f7cff; }
-  textarea { min-height: 220px; font-family: 'Menlo', 'Consolas', monospace; font-size: .82rem; resize: vertical; }
-  textarea.desc { min-height: 70px; font-family: inherit; font-size: .92rem; }
-  .row { display: flex; gap: 1rem; }
-  .row > div { flex: 1; }
-  .hint { font-size: .75rem; color: #555e73; margin-top: .25rem; }
-
-  /* Buttons */
-  .btn { padding: .55rem 1.2rem; border: 0; border-radius: 7px; font-weight: 600; font-size: .88rem; cursor: pointer; transition: opacity .15s, transform .1s; display: inline-flex; align-items: center; gap: .4rem; }
-  .btn:active { transform: scale(.97); }
-  .btn-primary { background: #4f7cff; color: #fff; margin-top: 1.2rem; }
-  .btn-primary:hover { opacity: .88; }
-  .btn-ghost { background: none; color: #8b92a5; padding: 0; margin: 0; font-weight: 400; }
-  .btn-ghost:hover { color: #e2e4e9; }
-  .btn-sm { padding: .35rem .75rem; font-size: .78rem; margin-top: 0; border-radius: 5px; }
-  .btn-edit { background: #1e2a4a; color: #7faeff; }
-  .btn-edit:hover { background: #253460; }
-  .btn-view { background: #1a2a1e; color: #6ecf85; }
-  .btn-view:hover { background: #1f3526; }
-  .btn-cancel { background: #1e2230; color: #8b92a5; margin-top: 1rem; }
-  .btn-cancel:hover { background: #252b3b; }
-
-  /* Status */
-  #status { margin-top: 1rem; font-size: .88rem; white-space: pre-wrap; line-height: 1.6; padding: .6rem .9rem; border-radius: 7px; display: none; }
-  #status.ok { display: block; background: #0e2019; color: #5fd37f; border: 1px solid #1a4029; }
-  #status.err { display: block; background: #21100e; color: #f08080; border: 1px solid #4a1e1b; }
-  #status.loading { display: block; background: #111520; color: #8b92a5; border: 1px solid #1e2230; }
-
-  /* Category badge */
-  .badge { display: inline-block; padding: .18rem .55rem; border-radius: 4px; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
-  .badge-education { background: #1a2a3e; color: #7fb8ff; }
-  .badge-news { background: #2a1a2e; color: #c07fff; }
-
-  /* Posts table */
-  .posts-table { width: 100%; border-collapse: collapse; }
-  .posts-table thead th { text-align: left; font-size: .75rem; font-weight: 600; color: #555e73; text-transform: uppercase; letter-spacing: .05em; padding: .5rem .75rem; border-bottom: 1px solid #1e2230; }
-  .posts-table tbody tr { border-bottom: 1px solid #1a1d26; transition: background .12s; }
-  .posts-table tbody tr:hover { background: #161922; }
-  .posts-table td { padding: .65rem .75rem; vertical-align: middle; }
-  .post-title-cell { max-width: 320px; }
-  .post-title { font-size: .9rem; font-weight: 500; color: #e2e4e9; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .post-desc { font-size: .75rem; color: #555e73; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; display: block; }
-  .post-thumb { width: 48px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #1e2230; }
-  .post-thumb-empty { width: 48px; height: 36px; border-radius: 4px; background: #1e2230; display: flex; align-items: center; justify-content: center; color: #353b4e; font-size: .9rem; }
-  .post-date { font-size: .78rem; color: #555e73; white-space: nowrap; }
-  .post-actions { display: flex; gap: .4rem; }
-  .empty-state { text-align: center; color: #555e73; padding: 2.5rem; font-size: .9rem; }
-
-  /* Image preview */
-  #imagePreview { display: none; margin-top: .6rem; }
-  #previewImg { max-width: 100%; max-height: 160px; border-radius: 7px; border: 1px solid #1e2230; object-fit: cover; }
-  input[type=file] { width: 100%; padding: .5rem; border-radius: 7px; border: 1px solid #1e2230; background: #0b0d11; color: #8b92a5; font-size: .85rem; cursor: pointer; }
+  input[type=text]:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+  textarea { min-height: 220px; font-family: 'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace; font-size: .82rem; resize: vertical; line-height: 1.5; }
+  textarea.desc { min-height: 72px; font-family: inherit; font-size: .9rem; }
+  .row2 { display: flex; gap: 1rem; }
+  .row2 > div { flex: 1; }
+  .hint { font-size: .74rem; color: #5a6485; margin-top: .3rem; }
+  input[type=file] {
+    width: 100%; padding: .55rem; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--muted); font-size: .82rem; cursor: pointer;
+  }
   input[type=file]::-webkit-file-upload-button {
-    background: #1e2a4a; color: #7faeff; border: none; border-radius: 5px;
-    padding: .3rem .7rem; cursor: pointer; font-size: .8rem; margin-right: .5rem;
+    background: #1e2a4a; color: #7faeff; border: none;
+    border-radius: 6px; padding: .3rem .7rem; cursor: pointer; font-size: .78rem; margin-right: .6rem;
   }
 
-  /* Form mode banner */
-  #editBanner { display: none; background: #1a2740; border: 1px solid #253460; border-radius: 8px; padding: .6rem 1rem; margin-bottom: 1rem; font-size: .85rem; color: #7faeff; display: flex; align-items: center; justify-content: space-between; }
-  #editBanner.hidden { display: none; }
-  #editBanner strong { color: #a8c8ff; }
+  /* ── Buttons ── */
+  .btn {
+    padding: .55rem 1.15rem; border: 0; border-radius: 8px;
+    font-weight: 600; font-size: .85rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: .4rem;
+    transition: all .15s ease;
+    user-select: none;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .btn-cancel:hover { color: var(--text); border-color: var(--border-light); }
+  .btn-sm { padding: .32rem .75rem; font-size: .78rem; border-radius: 6px; }
+  .btn-edit { background: rgba(79,121,255,.12); color: #7faeff; }
+  .btn-edit:hover { background: rgba(79,121,255,.22); color: #a4c5ff; }
+  .btn-view { background: rgba(62,207,126,.1); color: var(--green); text-decoration: none; }
+  .btn-view:hover { background: rgba(62,207,126,.2); }
 
-  a { color: #4f7cff; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #1e2230; border-top-color: #4f7cff; border-radius: 50%; animation: spin .6s linear infinite; }
+  /* ── Status Banner ── */
+  #status {
+    margin-top: 1.2rem; font-size: .85rem; white-space: pre-wrap;
+    padding: .75rem 1rem; border-radius: 8px; display: none; line-height: 1.6;
+  }
+  #status.ok      { display: block; background: #0c1e14; color: #5fd37f; border: 1px solid #1a3d28; }
+  #status.err     { display: block; background: #1e0d0d; color: #f08080; border: 1px solid #4a1515; }
+  #status.loading { display: block; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── Edit banner ── */
+  .edit-banner {
+    display: none; background: rgba(79,121,255,.1); border: 1px solid rgba(79,121,255,.3);
+    border-radius: 8px; padding: .7rem 1.1rem; margin-bottom: 1.2rem;
+    font-size: .85rem; color: #7faeff; align-items: center; justify-content: space-between;
+  }
+  .edit-banner.show { display: flex; }
+
+  /* ── Image preview ── */
+  #imagePreview { display: none; margin-top: .7rem; padding: .6rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; }
+  #previewImg { max-width: 100%; max-height: 160px; border-radius: 6px; object-fit: cover; display: block; }
+  #previewInfo { font-size: .75rem; color: var(--muted); margin-top: .4rem; }
+
+  /* ── Posts Table ── */
+  .posts-table-wrap { overflow-x: auto; }
+  .posts-table { width: 100%; border-collapse: collapse; text-align: left; }
+  .posts-table thead th {
+    font-size: .7rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em;
+    padding: .7rem .9rem; border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .posts-table tbody tr { border-bottom: 1px solid #141724; transition: background .12s; }
+  .posts-table tbody tr:hover { background: var(--surface2); }
+  .posts-table td { padding: .7rem .9rem; vertical-align: middle; }
+  .post-thumb { width: 50px; height: 36px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); display: block; background: var(--bg); }
+  .post-thumb-empty { width: 50px; height: 36px; border-radius: 6px; background: var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: .95rem; }
+  .post-title-text { font-size: .88rem; font-weight: 500; color: var(--text); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+  .post-desc-text  { font-size: .74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; display: block; margin-top: .15rem; }
+  .post-date-text  { font-size: .76rem; color: var(--muted); white-space: nowrap; }
+  .post-author-text { font-size: .76rem; color: var(--muted); white-space: nowrap; }
+  .post-actions { display: flex; gap: .45rem; align-items: center; }
+
+  /* ── Badges ── */
+  .badge { display: inline-block; padding: .2rem .6rem; border-radius: 4px; font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .badge-education { background: rgba(79,121,255,.15); color: #7faeff; border: 1px solid rgba(79,121,255,.25); }
+  .badge-news      { background: rgba(160,124,255,.15); color: #c09fff; border: 1px solid rgba(160,124,255,.25); }
+
+  /* ── Empty & spinner ── */
+  .empty-state { text-align: center; color: var(--muted); padding: 3rem 1.5rem; font-size: .9rem; }
+  .empty-icon  { font-size: 2rem; margin-bottom: .5rem; display: block; opacity: .7; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Mobile Responsive ── */
+  @media (max-width: 820px) {
+    :root { --sidebar-w: 68px; }
+    .sidebar-brand .sub, .sidebar-brand .logo span, .nav-section, .nav-item span:not(.icon), .nav-item .badge-count, .btn-logout span:not(.icon) { display: none; }
+    .nav-item { justify-content: center; padding: .75rem 0; border-left: none; border-bottom: 3px solid transparent; }
+    .nav-item.active { border-bottom-color: var(--accent); }
+    .content { padding: 1.2rem; }
+    .topbar { padding: .8rem 1.2rem; }
+    .row2 { flex-direction: column; gap: 0; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h2>📰 The Daybook — Admin</h2>
-  <div class="header-actions">
-    <span id="headerMode" style="font-size:.82rem;color:#555e73;"></span>
-    <form method="POST" action="/logout" style="margin:0;">
-      <button type="submit" class="btn btn-ghost">Log out</button>
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo"><span>📰</span> <span>The Daybook</span></div>
+    <div class="sub">Admin Panel</div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section">Manage Content</div>
+    
+    <div class="nav-item active" data-view="all" onclick="switchView('all', this)">
+      <span class="icon">🗂</span>
+      <span>All Blogs</span>
+      <span class="badge-count" id="count-all">—</span>
+    </div>
+
+    <div class="nav-item" data-view="education" onclick="switchView('education', this)">
+      <span class="icon">🎓</span>
+      <span>Educational</span>
+      <span class="badge-count" id="count-education">—</span>
+    </div>
+
+    <div class="nav-item" data-view="news" onclick="switchView('news', this)">
+      <span class="icon">📡</span>
+      <span>News Blog</span>
+      <span class="badge-count" id="count-news">—</span>
+    </div>
+
+    <div class="nav-section" style="margin-top: 1rem;">Publish</div>
+
+    <div class="nav-item" data-view="add" onclick="switchView('add', this)">
+      <span class="icon">➕</span>
+      <span>Add Blogs</span>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <form method="POST" action="/logout">
+      <button type="submit" class="btn-logout">
+        <span class="icon">🚪</span> <span>Log out</span>
+      </button>
     </form>
   </div>
-</header>
+</aside>
 
-<main>
-
-  <!-- ── Editor Form ── -->
-  <div class="card">
-    <div class="card-title">
-      <span id="formIcon">✏️</span>
-      <span id="formTitle">New Post</span>
+<!-- ── Main Workspace ── -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="topbarTitle">All Blogs</div>
+      <div class="topbar-sub" id="topbarSub">Manage and edit your published articles</div>
     </div>
-
-    <div id="editBanner" class="hidden">
-      Editing: <strong id="editingSlugLabel"></strong>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="resetForm()">✕ Cancel edit</button>
-    </div>
-
-    <form id="postForm">
-      <input type="hidden" name="slug" id="slugField">
-
-      <label>Title</label>
-      <input type="text" name="title" id="fieldTitle" required placeholder="Why interest rates are moving again">
-
-      <div class="row">
-        <div>
-          <label>Category</label>
-          <select name="category" id="fieldCategory" required>
-            <option value="education">Education</option>
-            <option value="news">News</option>
-          </select>
-        </div>
-        <div>
-          <label>Author</label>
-          <input type="text" name="author" id="fieldAuthor" placeholder="The Daybook Staff">
-        </div>
-        <div>
-          <label>Read time</label>
-          <input type="text" name="readTime" id="fieldReadTime" placeholder="5 min read">
-        </div>
-      </div>
-
-      <label>SEO description (~155 chars)</label>
-      <textarea name="description" id="fieldDescription" class="desc" required placeholder="One or two sentences summarizing the article for search results."></textarea>
-
-      <label>Cover image (JPG / PNG / WebP — auto-optimized &amp; uploaded)</label>
-      <input type="file" name="coverImage" accept="image/jpeg,image/png,image/webp,image/gif" id="coverImageInput">
-      <div id="imagePreview">
-        <img id="previewImg" alt="Preview">
-        <p class="hint" id="previewInfo"></p>
-      </div>
-      <p class="hint">Resized to max 1200×630 &amp; converted to WebP automatically. Leave empty to keep existing cover.</p>
-
-      <label>Article content — raw HTML</label>
-      <textarea name="content" id="fieldContent" placeholder="<p>Your article content...</p>"></textarea>
-
-      <label>Or upload an .html file</label>
-      <input type="file" name="file" accept=".html,.htm">
-
-      <div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;">
-        <button type="submit" class="btn btn-primary" id="submitBtn">🚀 Publish &amp; deploy</button>
-        <button type="button" class="btn btn-cancel btn-sm" id="cancelBtn" style="display:none;" onclick="resetForm()">✕ Cancel edit</button>
-      </div>
-    </form>
-    <div id="status"></div>
+    <button class="btn btn-primary btn-sm" onclick="switchView('add', document.querySelector('[data-view=add]'))">+ Add Blog</button>
   </div>
 
-  <!-- ── Published Posts ── -->
-  <div class="card">
-    <div class="card-title">
-      📋 Published Posts
-      <span id="postCount" style="font-size:.78rem;color:#555e73;font-weight:400;margin-left:.3rem;"></span>
-    </div>
-    <div id="postsContainer">
-      <div class="empty-state"><span class="spinner"></span> Loading posts…</div>
-    </div>
-  </div>
+  <div class="content">
 
-</main>
+    <!-- ── View: All Posts ── -->
+    <div class="view active" id="view-all">
+      <div class="stats">
+        <div class="stat-card" onclick="switchView('all', document.querySelector('[data-view=all]'))">
+          <div class="stat-num" id="stat-total">—</div>
+          <div class="stat-label">Total Articles</div>
+        </div>
+        <div class="stat-card" onclick="switchView('education', document.querySelector('[data-view=education]'))">
+          <div class="stat-num" id="stat-edu">—</div>
+          <div class="stat-label">🎓 Educational Blogs</div>
+        </div>
+        <div class="stat-card" onclick="switchView('news', document.querySelector('[data-view=news]'))">
+          <div class="stat-num" id="stat-news">—</div>
+          <div class="stat-label">📡 News Blogs</div>
+        </div>
+      </div>
+
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="card-header-bar">
+          <div class="card-header-info">
+            <span style="font-size: 1.1rem;">🗂</span>
+            <div class="card-header-title">All Published Blogs</div>
+          </div>
+          <div class="search-box">
+            <span>🔍</span>
+            <input type="text" placeholder="Filter articles..." oninput="filterTable('all', this.value)">
+          </div>
+        </div>
+        <div class="posts-table-wrap">
+          <div id="posts-all"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── View: Educational Blogs ── -->
+    <div class="view" id="view-education">
+      <div class="category-hero">
+        <div class="category-hero-text">
+          <h2>🎓 Educational Blogs <span class="badge badge-education" id="hero-count-edu">0 articles</span></h2>
+          <p>Explainers, learning guides, deep-dives, and educational resources</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openAddForCategory('education')">+ Add Educational Blog</button>
+      </div>
+
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="card-header-bar">
+          <div class="card-header-info">
+            <span class="card-header-title">Educational Articles List</span>
+          </div>
+          <div class="search-box">
+            <span>🔍</span>
+            <input type="text" placeholder="Filter educational blogs..." oninput="filterTable('education', this.value)">
+          </div>
+        </div>
+        <div class="posts-table-wrap">
+          <div id="posts-education"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── View: News Blogs ── -->
+    <div class="view" id="view-news">
+      <div class="category-hero">
+        <div class="category-hero-text">
+          <h2>📡 News Blogs <span class="badge badge-news" id="hero-count-news">0 articles</span></h2>
+          <p>Timely news updates, current events, industry analysis, and reports</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openAddForCategory('news')">+ Add News Blog</button>
+      </div>
+
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="card-header-bar">
+          <div class="card-header-info">
+            <span class="card-header-title">News Articles List</span>
+          </div>
+          <div class="search-box">
+            <span>🔍</span>
+            <input type="text" placeholder="Filter news blogs..." oninput="filterTable('news', this.value)">
+          </div>
+        </div>
+        <div class="posts-table-wrap">
+          <div id="posts-news"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── View: Add / Edit Blog ── -->
+    <div class="view" id="view-add">
+      <div class="card">
+        <div style="font-size: 1.05rem; font-weight: 600; color: #fff; margin-bottom: 1.2rem; display: flex; align-items: center; gap: .5rem;" id="formHeading">
+          <span>➕</span> <span>New Blog Post</span>
+        </div>
+
+        <div class="edit-banner" id="editBanner">
+          <span>✏️ Currently Editing: <strong id="editingLabel" style="color: #fff;"></strong></span>
+          <button class="btn btn-cancel btn-sm" onclick="resetForm()">✕ Cancel Edit</button>
+        </div>
+
+        <form id="postForm">
+          <input type="hidden" name="slug" id="slugField">
+
+          <label>Title *</label>
+          <input type="text" name="title" id="fieldTitle" required placeholder="e.g. Why interest rates are moving again">
+
+          <div class="row2">
+            <div>
+              <label>Category *</label>
+              <select name="category" id="fieldCategory" required>
+                <option value="education">🎓 Educational</option>
+                <option value="news">📡 News Blog</option>
+              </select>
+            </div>
+            <div>
+              <label>Author</label>
+              <input type="text" name="author" id="fieldAuthor" placeholder="The Daybook Staff">
+            </div>
+            <div>
+              <label>Read Time</label>
+              <input type="text" name="readTime" id="fieldReadTime" placeholder="5 min read">
+            </div>
+          </div>
+
+          <label>SEO Description (~155 chars) *</label>
+          <textarea name="description" id="fieldDescription" class="desc" required placeholder="Two sentences summarizing the article for search engines, cards, and previews."></textarea>
+
+          <label>Cover Image (Auto-optimized &amp; converted to WebP 1200×630 on GitHub)</label>
+          <input type="file" name="coverImage" accept="image/jpeg,image/png,image/webp,image/gif" id="coverImageInput">
+          
+          <div id="imagePreview">
+            <img id="previewImg" alt="Preview">
+            <p id="previewInfo"></p>
+          </div>
+          <p class="hint">Upload any JPG, PNG, or WebP. When editing, leave this empty to keep your existing cover image.</p>
+
+          <label>Article Content (Raw HTML)</label>
+          <textarea name="content" id="fieldContent" placeholder="<p>Write or paste your article HTML paragraphs here...</p>"></textarea>
+
+          <label>Or Upload an .html File</label>
+          <input type="file" name="file" accept=".html,.htm" id="fileInput">
+
+          <div style="display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; margin-top: 1.4rem;">
+            <button type="submit" class="btn btn-primary" id="submitBtn">🚀 Publish &amp; Deploy</button>
+            <button type="button" class="btn btn-cancel" id="cancelBtn" style="display: none;" onclick="resetForm()">✕ Cancel</button>
+          </div>
+        </form>
+
+        <div id="status"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
 
 <script>
-const SITE_URL = ''; // relative; Vercel admin won't have direct access to public site
+const SITE_URL = 'https://my-blog-55217.web.app';
 let allPosts = [];
-let editingPost = null;
+let filteredPosts = { all: [], education: [], news: [] };
+let currentView = 'all';
 
-// ── Load posts table ──
-async function loadPosts() {
-  try {
-    const res = await fetch('/admin/posts');
-    allPosts = await res.json();
-    renderTable(allPosts);
-  } catch (e) {
-    document.getElementById('postsContainer').innerHTML =
-      '<div class="empty-state">Failed to load posts.</div>';
+// ── View Metadata ──
+const viewMeta = {
+  all:       { title: 'All Blogs',          sub: 'Manage and edit all published content' },
+  education: { title: 'Educational Blogs',  sub: 'Guides, explainers, and educational articles' },
+  news:      { title: 'News Blogs',         sub: 'News stories, timely analysis, and reports' },
+  add:       { title: 'Add / Edit Blog',    sub: 'Compose, upload images, and deploy articles' },
+};
+
+function switchView(viewId, el) {
+  currentView = viewId;
+
+  // Active nav item styling
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const targetNav = el || document.querySelector(`[data-view="${viewId}"]`);
+  if (targetNav) targetNav.classList.add('active');
+
+  // Display selected view
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const targetView = document.getElementById('view-' + viewId);
+  if (targetView) targetView.classList.add('active');
+
+  // Update topbar texts
+  if (viewMeta[viewId]) {
+    document.getElementById('topbarTitle').textContent = viewMeta[viewId].title;
+    document.getElementById('topbarSub').textContent   = viewMeta[viewId].sub;
   }
 }
 
-function renderTable(posts) {
-  document.getElementById('postCount').textContent = `(${posts.length})`;
-  const container = document.getElementById('postsContainer');
-  if (!posts.length) {
-    container.innerHTML = '<div class="empty-state">No posts published yet.</div>';
-    return;
-  }
-
-  const rows = posts.map(p => {
-    const badge = `<span class="badge badge-${p.category}">${p.category}</span>`;
-    const thumb = p.image
-      ? `<img class="post-thumb" src="https://my-blog-55217.web.app/${p.image}" alt="" onerror="this.style.display='none'">`
-      : `<div class="post-thumb-empty">📄</div>`;
-    return `
-      <tr>
-        <td>${thumb}</td>
-        <td class="post-title-cell">
-          <span class="post-title" title="${escHtml(p.title)}">${escHtml(p.title)}</span>
-          <span class="post-desc">${escHtml(p.description || '')}</span>
-        </td>
-        <td>${badge}</td>
-        <td class="post-date">${p.date}</td>
-        <td><span style="font-size:.75rem;color:#555e73;">${escHtml(p.author || '')}</span></td>
-        <td>
-          <div class="post-actions">
-            <button class="btn btn-edit btn-sm" onclick="startEdit(${JSON.stringify(JSON.stringify(p))})">✏️ Edit</button>
-            <a class="btn btn-view btn-sm" href="https://my-blog-55217.web.app/${p.category}/${p.slug}.html" target="_blank">🔗 View</a>
-          </div>
-        </td>
-      </tr>`;
-  }).join('');
-
-  container.innerHTML = `
-    <table class="posts-table">
-      <thead>
-        <tr>
-          <th></th>
-          <th>Title</th>
-          <th>Category</th>
-          <th>Date</th>
-          <th>Author</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+function openAddForCategory(category) {
+  switchView('add', document.querySelector('[data-view="add"]'));
+  document.getElementById('fieldCategory').value = category;
 }
 
-function escHtml(s) {
-  return String(s || '').replace(/[&<>"']/g, c =>
-    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+// ── Helpers ──
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g,
+    c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
-// ── Start editing a post ──
-async function startEdit(postJson) {
-  const p = JSON.parse(postJson);
-  editingPost = p;
-
-  // Scroll to form
-  document.getElementById('postForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  // Fill known fields from posts.json
-  document.getElementById('slugField').value = p.slug;
-  document.getElementById('fieldTitle').value = p.title || '';
-  document.getElementById('fieldCategory').value = p.category || 'education';
-  document.getElementById('fieldAuthor').value = p.author || '';
-  document.getElementById('fieldReadTime').value = p.readTime || '';
-  document.getElementById('fieldDescription').value = p.description || '';
-  document.getElementById('fieldContent').value = '⏳ Loading article body…';
-
-  // Update UI
-  document.getElementById('formIcon').textContent = '✏️';
-  document.getElementById('formTitle').textContent = 'Edit Post';
-  document.getElementById('submitBtn').textContent = '💾 Update & deploy';
-  document.getElementById('cancelBtn').style.display = 'inline-flex';
-  document.getElementById('editBanner').classList.remove('hidden');
-  document.getElementById('editingSlugLabel').textContent = `${p.category}/${p.slug}`;
-  document.getElementById('headerMode').textContent = `Editing: ${p.slug}`;
-  setStatus('loading', '⏳ Fetching article body from GitHub…');
-
-  // Fetch article body
-  try {
-    const r = await fetch(`/admin/post/${p.category}/${p.slug}`);
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Failed');
-    document.getElementById('fieldContent').value = data.content;
-    setStatus('', '');
-  } catch (e) {
-    document.getElementById('fieldContent').value = '';
-    setStatus('err', '⚠ Could not load article body: ' + e.message);
-  }
-}
-
-// ── Reset form to "new post" mode ──
-function resetForm() {
-  editingPost = null;
-  document.getElementById('postForm').reset();
-  document.getElementById('slugField').value = '';
-  document.getElementById('fieldContent').value = '';
-  document.getElementById('formIcon').textContent = '✏️';
-  document.getElementById('formTitle').textContent = 'New Post';
-  document.getElementById('submitBtn').textContent = '🚀 Publish & deploy';
-  document.getElementById('cancelBtn').style.display = 'none';
-  document.getElementById('editBanner').classList.add('hidden');
-  document.getElementById('headerMode').textContent = '';
-  document.getElementById('imagePreview').style.display = 'none';
-  setStatus('', '');
-}
-
-// ── Cover image preview ──
-document.getElementById('coverImageInput').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  const preview = document.getElementById('imagePreview');
-  if (!file) { preview.style.display = 'none'; return; }
-  const reader = new FileReader();
-  reader.onload = ev => {
-    document.getElementById('previewImg').src = ev.target.result;
-    document.getElementById('previewInfo').textContent =
-      `${file.name} · ${(file.size / 1024).toFixed(0)} KB → will be optimized to WebP`;
-    preview.style.display = 'block';
-  };
-  reader.readAsDataURL(file);
-});
-
-// ── Status helper ──
 function setStatus(type, msg) {
   const el = document.getElementById('status');
   el.className = type || '';
   el.textContent = msg;
 }
 
-// ── Form submit ──
-document.getElementById('postForm').addEventListener('submit', async (e) => {
+function spinner() { return '<span class="spinner"></span>'; }
+
+// ── Render Posts Table ──
+function renderTable(containerId, posts) {
+  const el = document.getElementById(containerId);
+  if (!posts || !posts.length) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-icon">📭</span>
+        <div>No blog articles found.</div>
+      </div>`;
+    return;
+  }
+
+  const rows = posts.map(p => {
+    const thumb = p.image
+      ? `<img class="post-thumb" src="${SITE_URL}/${p.image}" alt="" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'post-thumb-empty\\'>📄</div>';">`
+      : `<div class="post-thumb-empty">📄</div>`;
+
+    return `
+    <tr>
+      <td style="width: 50px;">${thumb}</td>
+      <td>
+        <span class="post-title-text" title="${esc(p.title)}">${esc(p.title)}</span>
+        <span class="post-desc-text" title="${esc(p.description)}">${esc(p.description)}</span>
+      </td>
+      <td><span class="badge badge-${p.category}">${p.category === 'education' ? 'Educational' : 'News'}</span></td>
+      <td class="post-date-text">${p.date || '—'}</td>
+      <td class="post-author-text">${esc(p.author || 'Staff')}</td>
+      <td>
+        <div class="post-actions">
+          <button class="btn btn-edit btn-sm" onclick='startEdit(${JSON.stringify(JSON.stringify(p))})'>✏️ Edit</button>
+          <a class="btn btn-view btn-sm" href="${SITE_URL}/${p.category}/${p.slug}.html" target="_blank" rel="noopener">🔗 View</a>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+  <table class="posts-table">
+    <thead>
+      <tr>
+        <th>Cover</th>
+        <th>Title &amp; Summary</th>
+        <th>Category</th>
+        <th>Published</th>
+        <th>Author</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── Real-time Search / Filter ──
+function filterTable(categoryKey, query) {
+  const q = (query || '').toLowerCase().trim();
+  let baseList = [];
+  if (categoryKey === 'all') baseList = allPosts;
+  else if (categoryKey === 'education') baseList = allPosts.filter(p => p.category === 'education');
+  else if (categoryKey === 'news') baseList = allPosts.filter(p => p.category === 'news');
+
+  const filtered = q
+    ? baseList.filter(p =>
+        (p.title && p.title.toLowerCase().includes(q)) ||
+        (p.description && p.description.toLowerCase().includes(q)) ||
+        (p.author && p.author.toLowerCase().includes(q)) ||
+        (p.slug && p.slug.toLowerCase().includes(q))
+      )
+    : baseList;
+
+  filteredPosts[categoryKey] = filtered;
+  renderTable('posts-' + categoryKey, filtered);
+}
+
+// ── Load All Posts ──
+async function loadPosts() {
+  ['all','education','news'].forEach(id => {
+    const el = document.getElementById('posts-' + id);
+    if (el) el.innerHTML = `<div class="empty-state">${spinner()} Loading blog posts…</div>`;
+  });
+
+  try {
+    const res = await fetch('/admin/posts');
+    allPosts = await res.json();
+    const edu  = allPosts.filter(p => p.category === 'education');
+    const news = allPosts.filter(p => p.category === 'news');
+
+    // Update Counts & Badges
+    document.getElementById('count-all').textContent       = allPosts.length;
+    document.getElementById('count-education').textContent = edu.length;
+    document.getElementById('count-news').textContent      = news.length;
+
+    document.getElementById('stat-total').textContent      = allPosts.length;
+    document.getElementById('stat-edu').textContent        = edu.length;
+    document.getElementById('stat-news').textContent       = news.length;
+
+    document.getElementById('hero-count-edu').textContent  = `${edu.length} article${edu.length === 1 ? '' : 's'}`;
+    document.getElementById('hero-count-news').textContent = `${news.length} article${news.length === 1 ? '' : 's'}`;
+
+    filteredPosts.all = allPosts;
+    filteredPosts.education = edu;
+    filteredPosts.news = news;
+
+    renderTable('posts-all', allPosts);
+    renderTable('posts-education', edu);
+    renderTable('posts-news', news);
+  } catch (e) {
+    ['all','education','news'].forEach(id => {
+      const el = document.getElementById('posts-' + id);
+      if (el) el.innerHTML = '<div class="empty-state"><span class="empty-icon">⚠</span>Failed to load posts from server.</div>';
+    });
+  }
+}
+
+// ── Edit a Post ──
+async function startEdit(postJson) {
+  const p = JSON.parse(postJson);
+
+  // Switch to Add/Edit view
+  switchView('add', document.querySelector('[data-view="add"]'));
+
+  // Pre-fill form fields
+  document.getElementById('slugField').value         = p.slug;
+  document.getElementById('fieldTitle').value        = p.title || '';
+  document.getElementById('fieldCategory').value     = p.category || 'education';
+  document.getElementById('fieldAuthor').value       = p.author || '';
+  document.getElementById('fieldReadTime').value     = p.readTime || '';
+  document.getElementById('fieldDescription').value  = p.description || '';
+  document.getElementById('fieldContent').value      = '⏳ Fetching article body from GitHub…';
+
+  // UI state for Edit Mode
+  document.getElementById('formHeading').innerHTML   = '<span>✏️</span> <span>Edit Blog Post</span>';
+  document.getElementById('submitBtn').innerHTML     = '💾 Update &amp; Deploy';
+  document.getElementById('cancelBtn').style.display = 'inline-flex';
+  document.getElementById('editBanner').classList.add('show');
+  document.getElementById('editingLabel').textContent = `${p.category.toUpperCase()} / ${p.slug}`;
+  setStatus('loading', '⏳ Fetching live article HTML from GitHub…');
+
+  // Show existing cover image preview if present
+  if (p.image) {
+    document.getElementById('previewImg').src = `${SITE_URL}/${p.image}`;
+    document.getElementById('previewInfo').textContent = `Current cover: ${p.image} (upload a new file above only if you want to replace it)`;
+    document.getElementById('imagePreview').style.display = 'block';
+  } else {
+    document.getElementById('imagePreview').style.display = 'none';
+  }
+
+  // Fetch article HTML from server
+  try {
+    const r = await fetch(`/admin/post/${p.category}/${p.slug}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Article not found');
+    document.getElementById('fieldContent').value = data.content || '';
+    setStatus('', '');
+  } catch (e) {
+    document.getElementById('fieldContent').value = '';
+    setStatus('err', '⚠ Could not fetch article body from GitHub: ' + e.message);
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Reset Form ──
+function resetForm() {
+  document.getElementById('postForm').reset();
+  document.getElementById('slugField').value = '';
+  document.getElementById('fieldContent').value = '';
+  document.getElementById('formHeading').innerHTML   = '<span>➕</span> <span>New Blog Post</span>';
+  document.getElementById('submitBtn').innerHTML     = '🚀 Publish &amp; Deploy';
+  document.getElementById('cancelBtn').style.display = 'none';
+  document.getElementById('editBanner').classList.remove('show');
+  document.getElementById('imagePreview').style.display = 'none';
+  setStatus('', '');
+}
+
+// ── Cover Image Live Preview ──
+document.getElementById('coverImageInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) {
+    // If resetting file input, hide preview unless in edit mode with existing image
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('previewImg').src = ev.target.result;
+    document.getElementById('previewInfo').textContent =
+      `${file.name} (${(file.size / 1024).toFixed(0)} KB) — will be optimized & converted to WebP on upload`;
+    document.getElementById('imagePreview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+});
+
+// ── Submit / Save ──
+document.getElementById('postForm').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = document.getElementById('submitBtn');
+  const origHtml = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Publishing…';
-  setStatus('loading', '⏳ Publishing and committing to GitHub…');
+  btn.innerHTML = `${spinner()} Committing…`;
+  setStatus('loading', '⏳ Committing changes to GitHub and triggering automatic deployment…');
 
-  const data = new FormData(e.target);
   try {
-    const res = await fetch('/admin/add-post', { method: 'POST', body: data });
+    const res = await fetch('/admin/add-post', { method: 'POST', body: new FormData(e.target) });
     const result = await res.json();
-    if (!res.ok) throw new Error(result.error || 'Failed');
-    setStatus('ok', `✓ ${result.message}${result.url ? '\nLive: ' + result.url : ''}`);
+    if (!res.ok) throw new Error(result.error || 'Failed to save post');
+    
+    setStatus('ok', `✓ ${result.message}${result.url ? '\n🔗 View live: ' + result.url : ''}`);
     resetForm();
-    loadPosts();
+    await loadPosts();
   } catch (err) {
     setStatus('err', '✗ ' + err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = editingPost ? '💾 Update & deploy' : '🚀 Publish & deploy';
+    btn.innerHTML = origHtml;
   }
 });
 
+// Initial load
 loadPosts();
 </script>
 </body>

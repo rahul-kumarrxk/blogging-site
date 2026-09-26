@@ -482,7 +482,7 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
       return res.status(400).json({ error: 'Invalid slug — only lowercase letters, numbers, and hyphens allowed.' });
     }
 
-    const date = new Date().toISOString().slice(0, 10);
+    let date = new Date().toISOString().slice(0, 10);
     const readTime = req.body.readTime && req.body.readTime.trim() ? req.body.readTime.trim() : '5 min read';
 
     // ---- Handle cover image upload ----
@@ -497,8 +497,6 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
       coverImageFile = { path: imagePath, content: optimized.toString('base64'), encoding: 'base64' };
     }
 
-    const post = { title, slug, category, description, author, date, readTime, image, contentHtml };
-
     // ---- Fetch live files from GitHub ----
     const [postsFile, homepageFile, catArchiveFile] = await Promise.all([
       getGithubFile('public/posts.json'),
@@ -508,8 +506,20 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
 
     // ---- Update posts registry ----
     let posts = postsFile ? JSON.parse(postsFile.content) : readPostsLocal();
-    const { contentHtml: _drop, ...postMeta } = post;
     const idx = posts.findIndex((p) => p.slug === slug && p.category === category);
+
+    // If updating an existing post, preserve existing image and date if not replaced
+    if (idx >= 0) {
+      if (!image && posts[idx].image) {
+        image = posts[idx].image;
+      }
+      if (posts[idx].date) {
+        date = posts[idx].date;
+      }
+    }
+
+    const post = { title, slug, category, description, author, date, readTime, image, contentHtml };
+    const { contentHtml: _drop, ...postMeta } = post;
     if (idx >= 0) posts[idx] = postMeta;
     else posts.push(postMeta);
     posts.sort((a, b) => new Date(b.date) - new Date(a.date));
