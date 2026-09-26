@@ -2,11 +2,11 @@
  * Blog admin panel for The Daybook.
  * - JWT-based HttpOnly cookie auth (Vercel serverless compatible)
  * - Add a post: title, category (education/news), description, author,
- *   optional cover image URL, and raw HTML content or an uploaded .html file
+ *   optional cover image upload (auto-optimized to WebP via sharp)
  * - On submit the server:
- *     1. generates new HTML for the article, homepage, category, sitemap, rss
- *     2. uses the GitHub API to commit all changes directly to the repository
- *        (no git push, no local filesystem writes — fully serverless compatible)
+ *     1. optimizes uploaded cover image → WebP ≤1200×630 via sharp
+ *     2. commits image + article HTML + homepage/category/sitemap/rss
+ *        directly to GitHub via API (no git push, no local disk writes)
  */
 
 require('dotenv').config();
@@ -14,6 +14,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 const { Octokit } = require('@octokit/rest');
@@ -46,7 +47,15 @@ const CATEGORIES = {
   news: { label: 'News', schemaType: 'NewsArticle' },
 };
 
-const upload = multer({ storage: multer.memoryStorage() });
+// Accept both the HTML content file and the cover image in one multipart form
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB max per file
+});
+const uploadFields = upload.fields([
+  { name: 'file', maxCount: 1 },   // .html content file
+  { name: 'coverImage', maxCount: 1 }, // cover image
+]);
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -303,6 +312,26 @@ function regenerateRss(posts) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n  <channel>\n    <title>${SITE_NAME}</title>\n    <link>${SITE_URL}/</link>\n    <description>Education and news for curious minds.</description>\n    <language>en-us</language>\n    <atom:link href="${SITE_URL}/rss.xml" rel="self" type="application/rss+xml"/>\n    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>\n${items}\n  </channel>\n</rss>\n`;
 }
 
+// ---- Image optimization ----
+
+/**
+ * Accepts a raw image Buffer of any format.
+ * Returns a WebP Buffer optimised to max 1200×630, quality 82.
+ * Already-small images are not upscaled.
+ */
+async function optimizeImage(buffer) {
+  return sharp(buffer)
+    .rotate()                      // auto-rotate based on EXIF orientation
+    .resize({
+      width: 1200,
+      height: 630,
+      fit: 'inside',               // maintain aspect ratio, never upscale
+      withoutEnlargement: true,
+    })
+    .webp({ quality: 82 })         // convert to WebP
+    .toBuffer();
+}
+
 // ---- GitHub API — fetch a file's content and sha ----
 
 async function getGithubFile(filePath) {
@@ -338,12 +367,20 @@ async function commitFilesToGithub(message, files) {
   });
   const treeSha = commitRes.data.tree.sha;
 
-  // 3. Build new tree with all changed files
-  const tree = files.map((f) => ({
-    path: f.path,
-    mode: '100644',
-    type: 'blob',
-    content: f.content,
+  // 3. Build new tree — binary files (images) need a blob created first
+  const tree = await Promise.all(files.map(async (f) => {
+    if (f.encoding === 'base64') {
+      // Create a binary blob for images
+      const blobRes = await octokit.git.createBlob({
+        owner: GITHUB_REPO_OWNER,
+        repo: GITHUB_REPO_NAME,
+        content: f.content,
+        encoding: 'base64',
+      });
+      return { path: f.path, mode: '100644', type: 'blob', sha: blobRes.data.sha };
+    }
+    // Text files — content inline
+    return { path: f.path, mode: '100644', type: 'blob', content: f.content };
   }));
 
   const newTreeRes = await octokit.git.createTree({
@@ -408,7 +445,7 @@ app.get('/admin/posts', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/admin/add-post', requireAuth, upload.single('file'), async (req, res) => {
+app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
   try {
     const title = (req.body.title || '').trim();
     const category = req.body.category;
@@ -420,7 +457,8 @@ app.post('/admin/add-post', requireAuth, upload.single('file'), async (req, res)
     if (!description) return res.status(400).json({ error: 'A short description (used for SEO + previews) is required' });
 
     let contentHtml = req.body.content && req.body.content.trim();
-    if (!contentHtml && req.file) contentHtml = req.file.buffer.toString('utf8');
+    const htmlFiles = req.files && req.files['file'];
+    if (!contentHtml && htmlFiles && htmlFiles[0]) contentHtml = htmlFiles[0].buffer.toString('utf8');
     if (!contentHtml) return res.status(400).json({ error: 'Provide raw HTML content or upload an .html file' });
 
     const slug = slugify(req.body.slug || title);
@@ -432,7 +470,18 @@ app.post('/admin/add-post', requireAuth, upload.single('file'), async (req, res)
 
     const date = new Date().toISOString().slice(0, 10);
     const readTime = req.body.readTime && req.body.readTime.trim() ? req.body.readTime.trim() : '5 min read';
-    const image = (req.body.image || '').trim();
+
+    // ---- Handle cover image upload ----
+    let image = (req.body.image || '').trim(); // fallback: manual path field
+    const imageFiles = req.files && req.files['coverImage'];
+    let coverImageFile = null; // will be added to filesToCommit later
+    if (imageFiles && imageFiles[0]) {
+      const raw = imageFiles[0].buffer;
+      const optimized = await optimizeImage(raw);
+      const imagePath = `public/images/${slug}.webp`;
+      image = `images/${slug}.webp`;           // relative path for article HTML
+      coverImageFile = { path: imagePath, content: optimized.toString('base64'), encoding: 'base64' };
+    }
 
     const post = { title, slug, category, description, author, date, readTime, image, contentHtml };
 
@@ -485,6 +534,9 @@ app.post('/admin/add-post', requireAuth, upload.single('file'), async (req, res)
     // 5. Sitemap & RSS
     filesToCommit.push({ path: 'public/sitemap.xml', content: regenerateSitemap(posts) });
     filesToCommit.push({ path: 'public/rss.xml', content: regenerateRss(posts) });
+
+    // 6. Cover image (optimized WebP) — added last so text files aren't affected
+    if (coverImageFile) filesToCommit.push(coverImageFile);
 
     // ---- Push everything to GitHub in one commit ----
     await commitFilesToGithub(`Add/update post: ${title}`, filesToCommit);

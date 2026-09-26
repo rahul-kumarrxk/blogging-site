@@ -66,9 +66,13 @@
         </div>
       </div>
 
-      <label>Cover image path (relative to /public, e.g. images/my-cover.jpg)</label>
-      <input type="text" name="image" placeholder="images/my-cover.jpg">
-      <p class="hint">Add the image file to public/images/ yourself before publishing — the form doesn't upload images.</p>
+      <label>Cover image (JPG, PNG, WebP — auto-optimized &amp; uploaded to GitHub)</label>
+      <input type="file" name="coverImage" accept="image/jpeg,image/png,image/webp,image/gif" id="coverImageInput">
+      <div id="imagePreview" style="display:none;margin-top:.6rem;">
+        <img id="previewImg" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #262a33;object-fit:cover;" alt="Preview">
+        <p class="hint" id="previewInfo"></p>
+      </div>
+      <p class="hint">Auto-resized to max 1200×630 and converted to WebP. Leave empty for no cover image.</p>
 
       <label>Article content — raw HTML (paste here, OR upload a file below)</label>
       <textarea name="content" placeholder="&lt;p&gt;Your article content, with &lt;h2&gt; subheads as needed...&lt;/p&gt;"></textarea>
@@ -93,10 +97,26 @@ async function loadPosts() {
   const posts = await res.json();
   const list = document.getElementById('postList');
   list.innerHTML = posts.map(p =>
-    `<li><a href="../public/${p.category}/${p.slug}.html" target="_blank">${p.title}</a> — ${p.category}, ${p.date}</li>`
+    `<li><a href="${p.slug}" target="_blank">${p.title}</a> — ${p.category}, ${p.date}${
+      p.image ? ` <img src="/${p.image}" style="height:20px;vertical-align:middle;border-radius:3px;margin-left:4px;">` : ''
+    }</li>`
   ).join('') || '<li>No posts yet</li>';
 }
 loadPosts();
+
+// Cover image preview
+document.getElementById('coverImageInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) { document.getElementById('imagePreview').style.display = 'none'; return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    document.getElementById('previewImg').src = ev.target.result;
+    document.getElementById('previewInfo').textContent =
+      `Selected: ${file.name} (${(file.size / 1024).toFixed(0)} KB) — will be optimized to WebP on upload`;
+    document.getElementById('imagePreview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+});
 
 document.getElementById('postForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -110,7 +130,9 @@ document.getElementById('postForm').addEventListener('submit', async (e) => {
     if (!res.ok) throw new Error(result.error || 'Failed');
     status.className = 'ok';
     status.textContent = '✓ ' + result.message;
+    if (result.url) status.textContent += `\nLive URL: ${result.url}`;
     form.reset();
+    document.getElementById('imagePreview').style.display = 'none';
     loadPosts();
   } catch (err) {
     status.className = 'err';
