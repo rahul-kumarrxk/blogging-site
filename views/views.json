@@ -1,0 +1,57 @@
+[
+  {
+    "id": "education-default",
+    "name": "Education Default",
+    "type": "template",
+    "source": "templates/article/education-default.html",
+    "description": "Standard editorial layout for educational guides and deep-dives",
+    "category": "education",
+    "active": true
+  },
+  {
+    "id": "news-default",
+    "name": "News Default",
+    "type": "template",
+    "source": "templates/article/news-default.html",
+    "description": "Clean, authoritative layout for timely reporting and analysis",
+    "category": "news",
+    "active": true
+  },
+  {
+    "id": "featured-article",
+    "name": "Featured Article",
+    "type": "template",
+    "source": "templates/article/featured-article.html",
+    "description": "High-impact layout with featured emphasis and highlighted callouts",
+    "category": "all",
+    "active": true
+  },
+  {
+    "id": "custom-research-layout",
+    "name": "Custom Research Layout",
+    "type": "html",
+    "source": "templates/article/custom-research-layout.html",
+    "description": "Academic and investigative layout with executive summary abstract box",
+    "category": "all",
+    "active": true
+  },
+  {
+    "id": "existing-vaccines-view",
+    "name": "Vaccine Guide Layout (Extracted)",
+    "type": "article-derived",
+    "source": "templates/article/existing-vaccines-view.html",
+    "derivedFrom": "public/education/how-vaccines-train-your-immune-system.html",
+    "description": "Extracted presentation structure from the foundational vaccine explainer",
+    "category": "education",
+    "active": true
+  },
+  {
+    "id": "vaccine-explainer-clone",
+    "name": "Vaccine Explainer Clone",
+    "type": "article-derived",
+    "source": "templates/article/vaccine-explainer-clone.html",
+    "derivedFrom": "public/education/how-vaccines-train-your-immune-system.html",
+    "description": "Cloned layout from vaccine explainer",
+    "active": true
+  }
+]
