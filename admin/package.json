@@ -6,7 +6,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@octokit/rest": "^22.0.1",
+    "@octokit/rest": "^19.0.13",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
