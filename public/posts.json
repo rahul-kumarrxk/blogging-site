@@ -67,5 +67,31 @@
     "date": "2026-09-26",
     "readTime": "5 min read",
     "image": ""
+  },
+  {
+    "title": "New Clinical Trial Shows Enhanced mRNA Vaccine Efficacy Against Emerging Variants",
+    "slug": "new-clinical-trial-shows-enhanced-mrna-vaccine-efficacy-against-emergi",
+    "category": "news",
+    "view": {
+      "id": "news-default",
+      "type": "template",
+      "name": "News Default"
+    },
+    "cluster": "human-biology-health",
+    "clusterName": "Human Biology & Health",
+    "clusterSource": "auto",
+    "clusterConfidence": 88,
+    "isPillar": false,
+    "tags": [
+      "vaccines",
+      "immunology",
+      "health",
+      "trials"
+    ],
+    "description": "Phase 3 clinical trial results published this morning demonstrate durable neutralizing antibody titers against multiple viral variants.",
+    "author": "Elena Vance",
+    "date": "2026-09-26",
+    "readTime": "5 min read",
+    "image": ""
   }
 ]

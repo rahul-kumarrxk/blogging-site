@@ -6,7 +6,7 @@
     <description>Education and news for curious minds.</description>
     <language>en-us</language>
     <atom:link href="https://my-blog-55217.web.app/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Sat, 26 Sep 2026 20:51:06 GMT</lastBuildDate>
+    <lastBuildDate>Sat, 26 Sep 2026 20:51:37 GMT</lastBuildDate>
     <item>
       <title>How Vaccines Train Your Immune System (Without Making You Sick)</title>
       <link>https://my-blog-55217.web.app/education/how-vaccines-train-your-immune-system.html</link>
@@ -30,6 +30,14 @@
       <pubDate>Sat, 26 Sep 2026 03:30:00 +0000</pubDate>
       <description>An in-depth guide to how memory B and T cells protect the body against reinfection.</description>
       <category>Education</category>
+    </item>
+    <item>
+      <title>New Clinical Trial Shows Enhanced mRNA Vaccine Efficacy Against Emerging Variants</title>
+      <link>https://my-blog-55217.web.app/news/new-clinical-trial-shows-enhanced-mrna-vaccine-efficacy-against-emergi.html</link>
+      <guid>https://my-blog-55217.web.app/news/new-clinical-trial-shows-enhanced-mrna-vaccine-efficacy-against-emergi.html</guid>
+      <pubDate>Sat, 26 Sep 2026 03:30:00 +0000</pubDate>
+      <description>Phase 3 clinical trial results published this morning demonstrate durable neutralizing antibody titers against multiple viral variants.</description>
+      <category>News</category>
     </item>
   </channel>
 </rss>
