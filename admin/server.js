@@ -507,6 +507,10 @@ function extractViewFromHtml(htmlContent) {
     tpl = tpl.replace('{{clusterBox}}', '{{clusterBox}}\n    {{relatedArticles}}\n    {{crossCategoryArticles}}\n    {{latestRelated}}');
   }
 
+  if (!tpl.includes('cluster-auto-advance.js')) {
+    tpl = tpl.replace('</head>', '<script src="../js/cluster-auto-advance.js" defer></script>\n</head>');
+  }
+
   return tpl;
 }
 
@@ -542,6 +546,7 @@ function getStandardTemplateFallback() {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
+<script src="../js/cluster-auto-advance.js" defer></script>
 
 <script type="application/ld+json">
 {
