@@ -53,5 +53,14 @@
     "derivedFrom": "public/education/how-vaccines-train-your-immune-system.html",
     "description": "Cloned layout from vaccine explainer",
     "active": true
+  },
+  {
+    "id": "vaccine-explainer-clone-2",
+    "name": "Vaccine Explainer Clone 2",
+    "type": "article-derived",
+    "source": "templates/article/vaccine-explainer-clone-2.html",
+    "derivedFrom": "public/education/how-vaccines-train-your-immune-system.html",
+    "description": "Cloned layout from vaccine explainer",
+    "active": true
   }
 ]
