@@ -6,13 +6,21 @@
     <description>Education and news for curious minds.</description>
     <language>en-us</language>
     <atom:link href="https://my-blog-55217.web.app/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Sat, 26 Sep 2026 19:55:00 GMT</lastBuildDate>
+    <lastBuildDate>Sat, 26 Sep 2026 20:50:29 GMT</lastBuildDate>
     <item>
       <title>How Vaccines Train Your Immune System (Without Making You Sick)</title>
       <link>https://my-blog-55217.web.app/education/how-vaccines-train-your-immune-system.html</link>
       <guid>https://my-blog-55217.web.app/education/how-vaccines-train-your-immune-system.html</guid>
       <pubDate>Sat, 26 Sep 2026 03:30:00 +0000</pubDate>
-      <description>Vaccines don't fight disease directly — they teach your immune system to recognize a threat before it ever shows up. Here's the mechanism, step by step.</description>
+      <description>Vaccines don&#39;t fight disease directly — they teach your immune system to recognize a threat before it ever shows up. Here&#39;s the mechanism, step by step.</description>
+      <category>Education</category>
+    </item>
+    <item>
+      <title>How Antibodies Work</title>
+      <link>https://my-blog-55217.web.app/education/how-antibodies-work.html</link>
+      <guid>https://my-blog-55217.web.app/education/how-antibodies-work.html</guid>
+      <pubDate>Sat, 26 Sep 2026 03:30:00 +0000</pubDate>
+      <description>Antibodies are specialized proteins produced by B cells that neutralize foreign invaders.</description>
       <category>Education</category>
     </item>
   </channel>

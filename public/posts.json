@@ -17,5 +17,30 @@
     "date": "2026-09-26",
     "readTime": "6 min read",
     "image": ""
+  },
+  {
+    "title": "How Antibodies Work",
+    "slug": "how-antibodies-work",
+    "category": "education",
+    "view": {
+      "id": "education-default",
+      "type": "template",
+      "name": "Education Default"
+    },
+    "cluster": "human-biology-health",
+    "clusterName": "Human Biology & Health",
+    "clusterSource": "auto",
+    "clusterConfidence": 95,
+    "isPillar": false,
+    "tags": [
+      "antibodies",
+      "immune-system",
+      "biology"
+    ],
+    "description": "Antibodies are specialized proteins produced by B cells that neutralize foreign invaders.",
+    "author": "Sarah Jenkins",
+    "date": "2026-09-26",
+    "readTime": "5 min read",
+    "image": ""
   }
 ]
