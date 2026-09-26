@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — Add Post</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background:#0f1115; color:#e8e9ec; margin:0; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:1rem 2rem; border-bottom:1px solid #262a33; }
+  main { max-width:680px; margin:2rem auto; padding:0 1rem; }
+  .card { background:#171a21; border:1px solid #262a33; border-radius:10px; padding:1.5rem; margin-bottom:1.5rem; }
+  label { display:block; margin:.85rem 0 .3rem; font-size:.9rem; color:#9aa0ac; }
+  input[type=text], input[type=url], textarea, select {
+    width:100%; padding:.6rem; border-radius:6px; border:1px solid #262a33; background:#0f1115; color:#e8e9ec; font-family:inherit;
+  }
+  textarea { min-height:240px; font-family:monospace; font-size:.85rem; }
+  .row { display:flex; gap:1rem; }
+  .row > div { flex:1; }
+  button { margin-top:1.2rem; padding:.65rem 1.3rem; border:0; border-radius:6px; background:#5b8cff; color:#fff; font-weight:600; cursor:pointer; }
+  #status { margin-top:1rem; font-size:.9rem; white-space:pre-wrap; }
+  #status.ok { color:#5bffa0; }
+  #status.err { color:#ff6b6b; }
+  ul { padding-left:1.2rem; }
+  a { color:#5b8cff; }
+  .hint { font-size:.78rem; color:#6b7280; margin-top:.2rem; }
+  .logout { background:none !important; color:#9aa0ac !important; font-weight:400 !important; padding:0 !important; margin:0 !important; }
+</style>
+</head>
+<body>
+<header>
+  <h2 style="margin:0;">The Daybook — Admin</h2>
+  <form method="POST" action="/logout"><button type="submit" class="logout">Log out</button></form>
+</header>
+<main>
+  <div class="card">
+    <h3>Add a new post</h3>
+    <form id="postForm">
+      <label>Title</label>
+      <input type="text" name="title" required placeholder="Why interest rates are moving again">
+
+      <div class="row">
+        <div>
+          <label>Category</label>
+          <select name="category" required>
+            <option value="education">Education</option>
+            <option value="news">News</option>
+          </select>
+        </div>
+        <div>
+          <label>URL slug (optional)</label>
+          <input type="text" name="slug" placeholder="auto-generated from title">
+        </div>
+      </div>
+
+      <label>SEO description (used as meta description &amp; preview text, ~155 characters)</label>
+      <textarea name="description" style="min-height:70px;font-family:inherit;" required placeholder="One or two sentences summarizing the article for search results and social previews."></textarea>
+
+      <div class="row">
+        <div>
+          <label>Author name</label>
+          <input type="text" name="author" placeholder="The Daybook Staff">
+        </div>
+        <div>
+          <label>Read time</label>
+          <input type="text" name="readTime" placeholder="6 min read">
+        </div>
+      </div>
+
+      <label>Cover image path (relative to /public, e.g. images/my-cover.jpg)</label>
+      <input type="text" name="image" placeholder="images/my-cover.jpg">
+      <p class="hint">Add the image file to public/images/ yourself before publishing — the form doesn't upload images.</p>
+
+      <label>Article content — raw HTML (paste here, OR upload a file below)</label>
+      <textarea name="content" placeholder="&lt;p&gt;Your article content, with &lt;h2&gt; subheads as needed...&lt;/p&gt;"></textarea>
+
+      <label>Or upload an .html file</label>
+      <input type="file" name="file" accept=".html,.htm">
+
+      <button type="submit">Publish & deploy</button>
+    </form>
+    <div id="status"></div>
+  </div>
+
+  <div class="card">
+    <h3>Published posts</h3>
+    <ul id="postList"></ul>
+  </div>
+</main>
+
+<script>
+async function loadPosts() {
+  const res = await fetch('/admin/posts');
+  const posts = await res.json();
+  const list = document.getElementById('postList');
+  list.innerHTML = posts.map(p =>
+    `<li><a href="../public/${p.category}/${p.slug}.html" target="_blank">${p.title}</a> — ${p.category}, ${p.date}</li>`
+  ).join('') || '<li>No posts yet</li>';
+}
+loadPosts();
+
+document.getElementById('postForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const status = document.getElementById('status');
+  status.className = ''; status.textContent = 'Publishing…';
+  const form = e.target;
+  const data = new FormData(form);
+  try {
+    const res = await fetch('/admin/add-post', { method: 'POST', body: data });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed');
+    status.className = 'ok';
+    status.textContent = '✓ ' + result.message;
+    form.reset();
+    loadPosts();
+  } catch (err) {
+    status.className = 'err';
+    status.textContent = '✗ ' + err.message;
+  }
+});
+</script>
+</body>
+</html>

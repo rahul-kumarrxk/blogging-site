@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Login</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background:#0f1115; color:#e8e9ec; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
+  form { background:#171a21; border:1px solid #262a33; padding:2rem; border-radius:10px; width:280px; }
+  h1 { font-size:1.1rem; margin-top:0; }
+  input { width:100%; padding:.6rem; margin:.4rem 0 1rem; border-radius:6px; border:1px solid #262a33; background:#0f1115; color:#e8e9ec; }
+  button { width:100%; padding:.6rem; border:0; border-radius:6px; background:#5b8cff; color:#fff; font-weight:600; cursor:pointer; }
+  .error { color:#ff6b6b; font-size:.85rem; margin-bottom:.5rem; }
+</style>
+</head>
+<body>
+<form method="POST" action="/login">
+  <h1>Admin Login</h1>
+  <div class="error" id="err"></div>
+  <label>Username</label>
+  <input type="text" name="username" required autofocus>
+  <label>Password</label>
+  <input type="password" name="password" required>
+  <button type="submit">Log in</button>
+</form>
+<script>
+  if (new URLSearchParams(location.search).get('error')) {
+    document.getElementById('err').textContent = 'Invalid username or password';
+  }
+</script>
+</body>
+</html>

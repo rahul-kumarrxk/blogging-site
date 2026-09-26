@@ -1,0 +1,32 @@
+[
+  {
+    "title": "Why interest rates are moving again — and what it means for you",
+    "slug": "why-are-rates-changing-explained",
+    "category": "news",
+    "description": "A plain-language walk-through of what's driving the latest shift, who feels it first, and how to read the months ahead.",
+    "author": "Amara Field",
+    "date": "2026-09-26",
+    "readTime": "6 min read",
+    "image": "images/thumb-rates.jpg"
+  },
+  {
+    "title": "How Vaccines Train Your Immune System (Without Making You Sick)",
+    "slug": "how-vaccines-train-your-immune-system",
+    "category": "education",
+    "description": "Vaccines don't fight disease directly — they teach your immune system to recognize a threat before it ever shows up. Here's the mechanism, step by step.",
+    "author": "Priya Nathan",
+    "date": "2026-09-26",
+    "readTime": "5 min read",
+    "image": "images/thumb-vaccines.jpg"
+  },
+  {
+    "title": "How photosynthesis actually works, step by step",
+    "slug": "how-photosynthesis-actually-works",
+    "category": "education",
+    "description": "From sunlight to sugar: the chemistry your biology class rushed through, explained slowly and clearly.",
+    "author": "Priya Nathan",
+    "date": "2026-09-24",
+    "readTime": "8 min read",
+    "image": "images/thumb-photosynthesis.jpg"
+  }
+]
