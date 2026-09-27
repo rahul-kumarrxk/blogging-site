@@ -24,8 +24,12 @@
   <button type="submit">Log in</button>
 </form>
 <script>
-  if (new URLSearchParams(location.search).get('error')) {
+  const params = new URLSearchParams(location.search);
+  if (params.get('error')) {
     document.getElementById('err').textContent = 'Invalid username or password';
+  } else if (params.get('msg') === 'session_expired') {
+    document.getElementById('err').style.color = '#ffb86c';
+    document.getElementById('err').textContent = 'Your session has expired. Please log in again.';
   }
 </script>
 </body>

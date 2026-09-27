@@ -242,28 +242,32 @@
 
   // Boot: try fetch /posts.json, then ../posts.json, then fallbackToDomLinks
   function boot() {
-    fetch('/posts.json')
-      .then(function (r) {
-        if (!r.ok) throw new Error('status ' + r.status);
-        return r.json();
-      })
-      .then(function (posts) {
-        resolveTargetArticle(posts);
-      })
-      .catch(function () {
-        // Retry relative path
-        fetch('../posts.json')
-          .then(function (r) {
-            if (!r.ok) throw new Error('status ' + r.status);
-            return r.json();
-          })
-          .then(function (posts) {
+    function tryFetch(url, next) {
+      fetch(url)
+        .then(function (r) {
+          if (!r.ok) throw new Error('status ' + r.status);
+          var ct = r.headers.get('content-type') || '';
+          if (ct && !ct.includes('application/json')) throw new Error('not json');
+          return r.json();
+        })
+        .then(function (posts) {
+          if (Array.isArray(posts)) {
             resolveTargetArticle(posts);
-          })
-          .catch(function () {
-            fallbackToDomLinks();
-          });
+          } else {
+            throw new Error('invalid format');
+          }
+        })
+        .catch(function () {
+          if (next) next();
+          else fallbackToDomLinks();
+        });
+    }
+
+    tryFetch('/posts.json', function () {
+      tryFetch('../posts.json', function () {
+        fallbackToDomLinks();
       });
+    });
   }
 
   if (document.readyState === 'loading') {

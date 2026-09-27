@@ -785,6 +785,40 @@ let filteredPosts = { all: [], education: [], news: [] };
 let currentView = 'all';
 let clusteringTimeout = null;
 
+// ── Safe JSON Response Parser (handles HTML errors & session redirects gracefully) ──
+async function safeJson(res, defaultError) {
+  const contentType = res.headers.get('content-type') || '';
+  let data = null;
+  if (contentType.includes('application/json')) {
+    try {
+      data = await res.json();
+    } catch (e) {
+      data = null;
+    }
+  }
+
+  // Handle session expiration or unauthorized redirects
+  if (res.status === 401 || (data && data.redirect)) {
+    window.location.href = (data && data.redirect) || '/login?msg=session_expired';
+    throw new Error('Your session has expired. Redirecting to login…');
+  }
+
+  if (!res.ok) {
+    if (data && data.error) throw new Error(data.error);
+    const rawText = !data ? await res.text().catch(() => '') : '';
+    const cleanSnippet = rawText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+    throw new Error(cleanSnippet ? `HTTP ${res.status}: ${cleanSnippet}` : (defaultError || `Server error (${res.status})`));
+  }
+
+  if (!data) {
+    const rawText = await res.text().catch(() => '');
+    const cleanSnippet = rawText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+    throw new Error(cleanSnippet ? `Unexpected response: ${cleanSnippet}` : (defaultError || 'Server returned invalid response format.'));
+  }
+
+  return data;
+}
+
 // ── View Metadata ──
 const viewMeta = {
   all:       { title: 'All Blogs',          sub: 'Manage and edit all published content' },
@@ -1086,7 +1120,7 @@ async function runClusteringDetection() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, description, category, tags, content }),
     });
-    const data = await res.json();
+    const data = await safeJson(res, 'Failed to detect cluster');
     const label = document.getElementById('clusterLiveLabel');
     const badge = document.getElementById('clusterConfidenceBadge');
     const rec = document.getElementById('clusterLiveRecommendation');
@@ -1185,8 +1219,7 @@ async function selectExistingArticleAsView(articlePath, articleTitle) {
         description: `Extracted presentation structure from ${articleTitle}`,
       }),
     });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error || 'Failed to extract view');
+    const result = await safeJson(res, 'Failed to extract view');
 
     await loadViews();
     const select = document.getElementById('fieldViewId');
@@ -1244,8 +1277,7 @@ async function submitCreateView() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, id, type, description, sourceArticle, customHtml }),
     });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error || 'Failed to create view');
+    const result = await safeJson(res, 'Failed to create view');
 
     await loadViews();
     closeCreateViewModal();
@@ -1360,7 +1392,7 @@ async function loadPosts() {
 
   try {
     const res = await fetch('/admin/posts');
-    allPosts = await res.json();
+    allPosts = await safeJson(res, 'Failed to load posts');
     const edu  = allPosts.filter(p => p.category === 'education');
     const news = allPosts.filter(p => p.category === 'news');
 
@@ -1394,7 +1426,7 @@ async function loadPosts() {
 async function loadViews() {
   try {
     const res = await fetch('/admin/views');
-    allViews = await res.json();
+    allViews = await safeJson(res, 'Failed to load views');
     renderViewLibrary(allViews);
   } catch (e) {
     console.error('Failed to load views', e);
@@ -1404,7 +1436,7 @@ async function loadViews() {
 async function loadExistingArticles() {
   try {
     const res = await fetch('/admin/existing-articles');
-    existingArticles = await res.json();
+    existingArticles = await safeJson(res, 'Failed to load existing articles');
   } catch (e) {
     console.error('Failed to load existing articles', e);
   }
@@ -1453,8 +1485,7 @@ async function startEdit(postJson) {
 
   try {
     const r = await fetch(`/admin/post/${p.category}/${p.slug}`);
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Article not found');
+    const data = await safeJson(r, 'Failed to load article');
     document.getElementById('fieldContent').value = data.content || '';
     setStatus('', '');
   } catch (e) {
@@ -1509,8 +1540,7 @@ document.getElementById('postForm').addEventListener('submit', async e => {
 
   try {
     const res = await fetch('/admin/add-post', { method: 'POST', body: new FormData(e.target) });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error || 'Failed to save post');
+    const result = await safeJson(res, 'Failed to save post');
     
     setStatus('ok', `✓ ${result.message}${result.url ? '\n🔗 View live: ' + result.url : ''}`);
     resetForm();

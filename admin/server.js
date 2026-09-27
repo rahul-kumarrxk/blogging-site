@@ -68,15 +68,47 @@ app.use(cookieParser());
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-session-secret';
 
+function isApiRequest(req) {
+  const accept = req.headers['accept'] || '';
+  const xRequestedWith = req.headers['x-requested-with'] || '';
+  const isAjax = xRequestedWith.toLowerCase() === 'xmlhttprequest';
+  const wantsJson = accept.includes('application/json');
+  const isPostOrPut = req.method !== 'GET' && req.method !== 'HEAD';
+  const isApiRoute =
+    req.path.startsWith('/admin/api') ||
+    req.path === '/admin/add-post' ||
+    req.path === '/admin/create-view' ||
+    req.path === '/admin/posts' ||
+    req.path === '/admin/views' ||
+    req.path === '/admin/existing-articles' ||
+    req.path.startsWith('/admin/post/') ||
+    req.path.startsWith('/admin/preview/');
+  return isAjax || wantsJson || isPostOrPut || isApiRoute;
+}
+
 function requireAuth(req, res, next) {
   const token = req.cookies && req.cookies.admin_token;
-  if (!token) return res.redirect('/login');
+  if (!token) {
+    if (isApiRequest(req)) {
+      return res.status(401).json({
+        error: 'Session expired or not authenticated. Please log in again.',
+        redirect: '/login?msg=session_expired',
+      });
+    }
+    return res.redirect('/login');
+  }
   try {
     jwt.verify(token, SESSION_SECRET);
     next();
   } catch (err) {
     res.clearCookie('admin_token');
-    res.redirect('/login');
+    if (isApiRequest(req)) {
+      return res.status(401).json({
+        error: 'Session expired or invalid token. Please log in again.',
+        redirect: '/login?msg=session_expired',
+      });
+    }
+    return res.redirect('/login');
   }
 }
 
@@ -1510,6 +1542,17 @@ app.post('/admin/add-post', requireAuth, uploadFields, async (req, res) => {
 });
 
 app.get('/', (req, res) => res.redirect('/admin'));
+
+// ---- Centralized Error Handler (prevents HTML leak to JSON API clients) ----
+app.use((err, req, res, next) => {
+  console.error('[Admin Server Error]', err);
+  if (isApiRequest(req)) {
+    return res.status(err.status || err.statusCode || 500).json({
+      error: err.message || 'Internal server error occurred',
+    });
+  }
+  res.status(err.status || err.statusCode || 500).send(`Server Error: ${escapeHtml(err.message || 'Unknown error')}`);
+});
 
 // ---- Start locally or export for Vercel ----
 
