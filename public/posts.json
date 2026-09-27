@@ -1,5 +1,35 @@
 [
   {
+    "title": "Inside the Election Commission of India's Voter-Roll Dispute, Explained",
+    "slug": "inside-the-election-commission-of-india-s-voter-roll-dispute-explained",
+    "category": "news",
+    "view": {
+      "id": "news-default",
+      "type": "template",
+      "name": "News Default"
+    },
+    "cluster": "",
+    "clusterName": "",
+    "clusterSource": "auto",
+    "clusterConfidence": 100,
+    "isPillar": false,
+    "tags": [
+      "election commission of india",
+      "eci",
+      "gyanesh kumar",
+      "voter rolls",
+      "special intensive revision",
+      "sir",
+      "electoral reform",
+      "indian elections"
+    ],
+    "description": "Everything The Daybook has covered on India's Election Commission — how it works, key officials, voter-roll reforms, and the controversies shaping how India votes.",
+    "author": "A D Saurabh",
+    "date": "2026-09-27",
+    "readTime": "9 min read",
+    "image": ""
+  },
+  {
     "title": "How Vaccines Train Your Immune System (Without Making You Sick)",
     "slug": "how-vaccines-train-your-immune-system",
     "category": "education",
