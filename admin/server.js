@@ -233,6 +233,10 @@ function loadViewTemplateSync(viewId) {
   if (fs.existsSync(directPath)) {
     return fs.readFileSync(directPath, 'utf8');
   }
+  const adminPath = path.join(__dirname, 'templates', 'article', `${viewId}.html`);
+  if (fs.existsSync(adminPath)) {
+    return fs.readFileSync(adminPath, 'utf8');
+  }
   return null;
 }
 
@@ -991,16 +995,21 @@ function regenerateRss(posts) {
 // ---- Image optimization ----
 
 async function optimizeImage(buffer) {
-  return sharp(buffer)
-    .rotate()
-    .resize({
-      width: 1200,
-      height: 630,
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .webp({ quality: 82 })
-    .toBuffer();
+  try {
+    return await sharp(buffer)
+      .rotate()
+      .resize({
+        width: 1200,
+        height: 630,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 82 })
+      .toBuffer();
+  } catch (err) {
+    console.warn('[optimizeImage] Sharp optimization failed, using original buffer:', err.message);
+    return buffer;
+  }
 }
 
 // ---- GitHub API ----
@@ -1018,77 +1027,123 @@ async function getGithubFile(filePath) {
     return { content, sha: res.data.sha };
   } catch (err) {
     if (err.status === 404) return null;
-    throw err;
+    console.warn(`[getGithubFile] Could not fetch ${filePath} from GitHub:`, err.message);
+    return null;
   }
 }
 
 async function commitFilesToGithub(message, files) {
   if (!GITHUB_TOKEN) return;
 
-  const refRes = await octokit.git.getRef({
-    owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, ref: `heads/${GITHUB_BRANCH}`,
-  });
-  const commitSha = refRes.data.object.sha;
+  try {
+    const refRes = await octokit.git.getRef({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      ref: `heads/${GITHUB_BRANCH}`,
+    });
+    const commitSha = refRes.data.object.sha;
 
-  const commitRes = await octokit.git.getCommit({
-    owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, commit_sha: commitSha,
-  });
-  const treeSha = commitRes.data.tree.sha;
+    const commitRes = await octokit.git.getCommit({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      commit_sha: commitSha,
+    });
+    const treeSha = commitRes.data.tree.sha;
 
-  const tree = await Promise.all(files.map(async (f) => {
-    if (f.encoding === 'base64') {
-      const blobRes = await octokit.git.createBlob({
-        owner: GITHUB_REPO_OWNER,
-        repo: GITHUB_REPO_NAME,
-        content: f.content,
-        encoding: 'base64',
-      });
-      return { path: f.path, mode: '100644', type: 'blob', sha: blobRes.data.sha };
-    }
-    return { path: f.path, mode: '100644', type: 'blob', content: f.content };
-  }));
+    const tree = await Promise.all(
+      files.map(async (f) => {
+        if (f.encoding === 'base64') {
+          const blobRes = await octokit.git.createBlob({
+            owner: GITHUB_REPO_OWNER,
+            repo: GITHUB_REPO_NAME,
+            content: f.content,
+            encoding: 'base64',
+          });
+          return { path: f.path, mode: '100644', type: 'blob', sha: blobRes.data.sha };
+        }
+        return { path: f.path, mode: '100644', type: 'blob', content: f.content };
+      })
+    );
 
-  const newTreeRes = await octokit.git.createTree({
-    owner: GITHUB_REPO_OWNER, repo: GITHUB_REPO_NAME, base_tree: treeSha, tree,
-  });
+    const newTreeRes = await octokit.git.createTree({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      base_tree: treeSha,
+      tree,
+    });
 
-  const newCommitRes = await octokit.git.createCommit({
-    owner: GITHUB_REPO_OWNER,
-    repo: GITHUB_REPO_NAME,
-    message,
-    tree: newTreeRes.data.sha,
-    parents: [commitSha],
-  });
+    const newCommitRes = await octokit.git.createCommit({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      message,
+      tree: newTreeRes.data.sha,
+      parents: [commitSha],
+    });
 
-  await octokit.git.updateRef({
-    owner: GITHUB_REPO_OWNER,
-    repo: GITHUB_REPO_NAME,
-    ref: `heads/${GITHUB_BRANCH}`,
-    sha: newCommitRes.data.sha,
-  });
+    await octokit.git.updateRef({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      ref: `heads/${GITHUB_BRANCH}`,
+      sha: newCommitRes.data.sha,
+    });
+  } catch (ghErr) {
+    console.error('[GitHub API Commit Error]', ghErr);
+    throw new Error(
+      `GitHub API error (${ghErr.status || 500}): ${ghErr.message}. Verify that GITHUB_TOKEN has 'repo' write permissions in Vercel environment variables.`
+    );
+  }
 }
 
 /**
- * Commits files both to local disk (when running in dev) and to GitHub API
+ * Commits files both to local disk (when running in dev) and to GitHub API (on Vercel/production)
  */
 async function commitFiles(message, files) {
-  if (fs.existsSync(PUBLIC_DIR)) {
-    for (const f of files) {
-      const fullPath = path.join(REPO_ROOT, f.path);
-      const dir = path.dirname(fullPath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      if (f.encoding === 'base64') {
-        fs.writeFileSync(fullPath, Buffer.from(f.content, 'base64'));
-      } else {
-        fs.writeFileSync(fullPath, f.content, 'utf8');
+  // Only attempt local disk write if not on serverless/read-only environment
+  if (!process.env.VERCEL && fs.existsSync(PUBLIC_DIR)) {
+    try {
+      for (const f of files) {
+        const fullPath = path.join(REPO_ROOT, f.path);
+        const dir = path.dirname(fullPath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        if (f.encoding === 'base64') {
+          fs.writeFileSync(fullPath, Buffer.from(f.content, 'base64'));
+        } else {
+          fs.writeFileSync(fullPath, f.content, 'utf8');
+        }
       }
+    } catch (fsErr) {
+      console.warn('[commitFiles] Local disk write skipped or failed:', fsErr.message);
     }
   }
 
   if (GITHUB_TOKEN) {
     await commitFilesToGithub(message, files);
+  } else if (process.env.VERCEL) {
+    throw new Error(
+      'GITHUB_TOKEN environment variable is missing on Vercel. Please add GITHUB_TOKEN to your Vercel Project Settings (Settings -> Environment Variables).'
+    );
   }
 }
+
+// ---- Static Assets for Previews & Iframe Stylesheets ----
+
+app.get(['/css/style.css', '/public/css/style.css'], (req, res) => {
+  res.type('text/css');
+  const localCss = path.join(PUBLIC_DIR, 'css', 'style.css');
+  if (fs.existsSync(localCss)) return res.sendFile(localCss);
+  const bundledCss = path.join(__dirname, 'public', 'css', 'style.css');
+  if (fs.existsSync(bundledCss)) return res.sendFile(bundledCss);
+  res.redirect(`${SITE_URL}/css/style.css`);
+});
+
+app.get(['/js/cluster-auto-advance.js', '/public/js/cluster-auto-advance.js'], (req, res) => {
+  res.type('application/javascript');
+  const localJs = path.join(PUBLIC_DIR, 'js', 'cluster-auto-advance.js');
+  if (fs.existsSync(localJs)) return res.sendFile(localJs);
+  const bundledJs = path.join(__dirname, 'public', 'js', 'cluster-auto-advance.js');
+  if (fs.existsSync(bundledJs)) return res.sendFile(bundledJs);
+  res.redirect(`${SITE_URL}/js/cluster-auto-advance.js`);
+});
 
 // ---- Routes ----
 

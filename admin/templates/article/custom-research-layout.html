@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}} — Research Brief | {{siteName}}</title>
+<meta name="description" content="{{description}}">
+<link rel="canonical" href="{{canonicalUrl}}">
+{{robotsMeta}}
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="{{siteName}}">
+<meta property="og:title" content="{{title}}">
+<meta property="og:description" content="{{description}}">
+<meta property="og:url" content="{{canonicalUrl}}">
+<meta property="og:image" content="{{featuredImage}}">
+<meta property="article:published_time" content="{{isoDate}}">
+<meta property="article:modified_time" content="{{isoDate}}">
+<meta property="article:section" content="{{categoryLabel}}">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{title}}">
+<meta name="twitter:description" content="{{description}}">
+<meta name="twitter:image" content="{{featuredImage}}">
+
+<link rel="alternate" type="application/rss+xml" title="{{siteName}} feed" href="/rss.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/cluster-auto-advance.js" defer></script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "{{siteUrl}}/" },
+    { "@type": "ListItem", "position": 2, "name": "{{categoryLabel}}", "item": "{{siteUrl}}/{{category}}/" },
+    { "@type": "ListItem", "position": 3, "name": "{{title}}", "item": "{{canonicalUrl}}" }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "{{schemaType}}",
+  "headline": "{{title}}",
+  "description": "{{description}}",
+  "image": ["{{featuredImage}}"],
+  "datePublished": "{{isoDate}}",
+  "dateModified": "{{isoDate}}",
+  "author": { "@type": "Person", "name": "{{author}}" },
+  "publisher": { "@id": "{{siteUrl}}/#organization" },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "{{canonicalUrl}}" },
+  "articleSection": "{{categoryLabel}}"
+}
+</script>
+</head>
+<body>
+{{previewBanner}}
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+  <div class="wrap">
+    <div class="masthead-top"><p class="wordmark"><a href="/">{{siteName}}</a></p></div>
+    <nav class="primary-nav" aria-label="Primary">
+      <ul>
+        <li><a href="/">Front page</a></li>
+        <li><a href="/education/">Education</a></li>
+        <li><a href="/news/">News</a></li>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/contact.html">Contact</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main">
+  {{breadcrumbs}}
+  <div class="wrap">
+    <div class="article-header">
+      <p class="category-tag"><span style="background:var(--navy);color:#fff;padding:.15rem .45rem;border-radius:3px;font-size:.7rem;font-weight:700;">🔬 RESEARCH BRIEF</span> · {{categoryLabel}}{{topicPill}}{{pillarBadge}}</p>
+      <h1>{{title}}</h1>
+      <p class="article-meta">
+        <span>Lead Researcher / Author: <strong>{{author}}</strong></span>
+        <span>Date: <time datetime="{{date}}">{{date}}</time></span>
+        <span>Estimated Study Time: {{readTime}}</span>
+      </p>
+    </div>
+
+    <div style="background: #fdfaf3; border-left: 4px solid var(--navy); padding: 1.1rem 1.4rem; margin: 1.5rem 0 2rem; border-radius: 0 6px 6px 0;">
+      <div style="font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--navy); margin-bottom: .3rem;">Executive Summary / Abstract</div>
+      <p style="margin: 0; font-size: .95rem; line-height: 1.55; color: var(--ink);">{{description}}</p>
+    </div>
+
+    {{featuredImageBlock}}
+    <article class="article-body">
+      {{content}}
+    </article>
+    {{tagsHtml}}
+    {{clusterBox}}
+    {{relatedArticles}}
+    {{crossCategoryArticles}}
+    {{latestRelated}}
+  </div>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-bottom">
+      <span>© 2026 {{siteName}}. All rights reserved.</span>
+      <span><a href="/sitemap.xml">Sitemap</a> · <a href="/rss.xml">RSS</a></span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
